@@ -11,7 +11,8 @@ import Foundation
 @MainActor
 final class AuthService: NSObject, ObservableObject {
     @Published private(set) var isSignedIn = false
-    @Published private(set) var displayName: String?
+    @Published private(set) var displayName: String?  // Cognito username, e.g. "nakomis"
+    @Published private(set) var email: String?         // email claim, used for recipe filtering
     @Published private(set) var lastError: String?
 
     private var tokens: StoredTokens?
@@ -23,7 +24,9 @@ final class AuthService: NSObject, ObservableObject {
         if stored.expiresAt > Date() {
             tokens = stored
             isSignedIn = true
-            displayName = claims(from: stored.idToken)?["email"] as? String
+            let c = claims(from: stored.idToken)
+            displayName = c?["cognito:username"] as? String
+            email = c?["email"] as? String
         } else if let refreshToken = stored.refreshToken {
             await refresh(using: refreshToken)
         }
@@ -71,6 +74,7 @@ final class AuthService: NSObject, ObservableObject {
         tokens = nil
         isSignedIn = false
         displayName = nil
+        email = nil
     }
 
     // MARK: - Private
@@ -139,7 +143,9 @@ final class AuthService: NSObject, ObservableObject {
         try TokenStore.save(stored)
         tokens = stored
         isSignedIn = true
-        displayName = claims(from: stored.idToken)?["email"] as? String
+        let c = claims(from: stored.idToken)
+        displayName = c?["cognito:username"] as? String
+        email = c?["email"] as? String
     }
 
     // MARK: - PKCE helpers
