@@ -79,7 +79,7 @@ struct RecipeListView: View {
                         Text("Everyone").tag(everyoneTag)
                     }
                     .pickerStyle(.segmented)
-                    .frame(width: 200)
+                    .frame(minWidth: 200, maxWidth: 320)
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
