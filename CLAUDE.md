@@ -35,10 +35,12 @@ iOS Share Extension and Chrome plugin for extracting and saving web recipes with
 
 ```bash
 brew install xcodegen   # one-time
-xcodegen generate       # regenerates Recipator.xcodeproj
+cd ios && xcodegen generate   # regenerates Recipator.xcodeproj
 ```
 
 `*.xcodeproj` is generated on demand and **not committed** — source of truth is `project.yml`.
+
+**Run `xcodegen generate` any time `ios/project.yml` changes** (after pulling). Xcode build phase scripts cannot call xcodegen reliably (it's not in Xcode's stripped PATH), so this step must be done manually. Signs that you need to regenerate: wrong Cognito domain in the login sheet, build settings referencing `$(VARIABLE)` literally, or missing targets/schemes.
 
 ## AWS credentials (future)
 

@@ -78,6 +78,19 @@ final class AuthService: NSObject, ObservableObject {
         displayName = nil
         email = nil
         userId = nil
+        // Clear the Cognito server-side session so next sign-in always shows the login form.
+        // Fire-and-forget — if it fails the user can still sign back in (they'll just auto-authenticate).
+        Task { await clearCognitoSession() }
+    }
+
+    private func clearCognitoSession() async {
+        var comps = URLComponents(string: "https://\(AppConfig.cognitoLoginDomain)/logout")!
+        comps.queryItems = [
+            URLQueryItem(name: "client_id", value: AppConfig.cognitoClientID),
+            URLQueryItem(name: "logout_uri",  value: AppConfig.cognitoRedirectURI),
+        ]
+        guard let url = comps.url else { return }
+        _ = try? await beginSession(url: url)
     }
 
     // MARK: - Private
@@ -182,7 +195,15 @@ final class AuthService: NSObject, ObservableObject {
 
 extension AuthService: ASWebAuthenticationPresentationContextProviding {
     nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        MainActor.assumeIsolated { ASPresentationAnchor() }
+        MainActor.assumeIsolated {
+            // Force dark mode so the Cognito One Dark branding always shows regardless of system preference.
+            let anchor = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+                .first { $0.isKeyWindow } ?? ASPresentationAnchor()
+            anchor.overrideUserInterfaceStyle = .dark
+            return anchor
+        }
     }
 }
 

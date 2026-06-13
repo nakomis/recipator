@@ -33,10 +33,10 @@
 		<string>$(PRODUCT_MODULE_NAME).ShareViewController</string>
 	</dict>
 	<key>RecipatorApiBaseURL</key>
-	<string>https://api.recipator.sandbox.nakomis.com</string>
+	<string>$(RecipatorApiBaseURL)</string>
 	<key>RecipatorCognitoClientID</key>
-	<string>2nqfrt40559k92m3tbtklsbqrd</string>
+	<string>$(RecipatorCognitoClientID)</string>
 	<key>RecipatorCognitoLoginDomain</key>
-	<string>login.sandbox.nakomis.com</string>
+	<string>$(RecipatorCognitoLoginDomain)</string>
 </dict>
 </plist>
