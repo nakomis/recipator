@@ -43,6 +43,7 @@ targets:
                     - UIInterfaceOrientationPortraitUpsideDown
                     - UIInterfaceOrientationLandscapeLeft
                     - UIInterfaceOrientationLandscapeRight
+                ITSAppUsesNonExemptEncryption: false
                 CFBundleURLTypes:
                     - CFBundleURLSchemes:
                           - com.nakomis.recipator

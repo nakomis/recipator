@@ -29,6 +29,8 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>RecipatorApiBaseURL</key>
 	<string>$(RecipatorApiBaseURL)</string>
 	<key>RecipatorCognitoClientID</key>
