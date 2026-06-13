@@ -8,17 +8,21 @@ struct SignInView: View {
         VStack(spacing: 32) {
             Spacer()
 
-            Image("AppIcon")
+            Image("RecipatorIcon")
                 .resizable()
-                .frame(width: 100, height: 100)
-                .clipShape(RoundedRectangle(cornerRadius: 22))
-                .shadow(radius: 8)
+                .frame(width: 110, height: 110)
+                .clipShape(RoundedRectangle(cornerRadius: 24))
+                .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
 
-            VStack(spacing: 8) {
+            VStack(spacing: 4) {
                 Text("Recipator")
                     .font(.largeTitle.bold())
+                Text("v\(Bundle.main.appVersion)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
                 Text("Save recipes from anywhere.")
                     .foregroundStyle(.secondary)
+                    .padding(.top, 4)
             }
 
             Spacer()
