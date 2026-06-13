@@ -54,6 +54,14 @@ export class ApiStack extends cdk.Stack {
       },
     });
 
+    // Managed Login v2 requires an explicit branding resource per client.
+    // Without it the hosted UI returns "Login pages unavailable".
+    new cognito.CfnManagedLoginBranding(this, 'ManagedLoginBranding', {
+      userPoolId: userPool.userPoolId,
+      clientId: client.userPoolClientId,
+      useCognitoProvidedValues: true,
+    });
+
     new ssm.StringParameter(this, 'CognitoClientIdParam', {
       parameterName: `/recipator/${deployEnv}/cognito/client-id`,
       stringValue: client.userPoolClientId,
