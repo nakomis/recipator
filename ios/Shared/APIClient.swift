@@ -44,7 +44,7 @@ enum APIError: LocalizedError {
     case noURLFound
     case extractionFailed
 
-    var errorDescription: String {
+    var errorDescription: String? {
         switch self {
         case .notAuthenticated:  return "Not signed in. Open Recipator and sign in first."
         case .tokenExpired:      return "Session expired. Open Recipator and sign in again."

@@ -78,19 +78,6 @@ final class AuthService: NSObject, ObservableObject {
         displayName = nil
         email = nil
         userId = nil
-        // Clear the Cognito server-side session so next sign-in always shows the login form.
-        // Fire-and-forget — if it fails the user can still sign back in (they'll just auto-authenticate).
-        Task { await clearCognitoSession() }
-    }
-
-    private func clearCognitoSession() async {
-        var comps = URLComponents(string: "https://\(AppConfig.cognitoLoginDomain)/logout")!
-        comps.queryItems = [
-            URLQueryItem(name: "client_id", value: AppConfig.cognitoClientID),
-            URLQueryItem(name: "logout_uri",  value: AppConfig.cognitoRedirectURI),
-        ]
-        guard let url = comps.url else { return }
-        _ = try? await beginSession(url: url)
     }
 
     // MARK: - Private
@@ -103,7 +90,7 @@ final class AuthService: NSObject, ObservableObject {
                 cont.resume(returning: url!)
             }
             session.presentationContextProvider = self
-            session.prefersEphemeralWebBrowserSession = false
+            session.prefersEphemeralWebBrowserSession = true
             session.start()
         }
     }
