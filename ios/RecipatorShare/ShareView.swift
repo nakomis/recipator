@@ -86,7 +86,7 @@ struct ShareView: View {
         }
 
         guard let url = await resolveURL() else {
-            phase = .failed(APIError.noURLFound.errorDescription)
+            phase = .failed(APIError.noURLFound.errorDescription ?? "No URL found.")
             return
         }
 
