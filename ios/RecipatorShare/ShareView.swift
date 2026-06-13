@@ -162,6 +162,9 @@ struct RecipePreviewView: View {
                 }
             }
         }
+        .onAppear {
+            if selectedImageUrl == nil { selectedImageUrl = candidates.first }
+        }
         .safeAreaInset(edge: .bottom) {
             Button {
                 Task {

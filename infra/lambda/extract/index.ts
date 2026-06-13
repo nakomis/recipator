@@ -38,23 +38,33 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
   let url: URL;
   try { url = new URL(body.url); } catch { return err(400, 'Invalid URL'); }
 
+  console.log('extract:start', { url: url.toString(), userId });
+
   // Fetch page
   const pageRes = await fetch(url.toString(), {
     headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15' },
   });
-  if (!pageRes.ok) return err(502, `Failed to fetch page: ${pageRes.status}`);
+  if (!pageRes.ok) {
+    console.log('extract:fetch_failed', { url: url.toString(), status: pageRes.status });
+    return err(502, `Failed to fetch page: ${pageRes.status}`);
+  }
   const html = await pageRes.text();
 
   // Try JSON-LD first
   let extracted = extractFromJSONLD(html, url.toString());
+  console.log('extract:jsonld', { url: url.toString(), found: !!extracted });
 
   // Fall back to Claude Haiku
   if (!extracted || extracted.ingredients.length === 0) {
     const apiKey = await getAnthropicKey();
     extracted = await extractWithClaude(html, url.toString(), apiKey);
+    console.log('extract:claude', { url: url.toString(), found: !!extracted });
   }
 
-  if (!extracted) return err(422, 'Could not extract a recipe from this page');
+  if (!extracted) {
+    console.log('extract:failed', { url: url.toString() });
+    return err(422, 'Could not extract a recipe from this page');
+  }
 
   const recipeId       = randomUUID();
   const savedAt        = new Date().toISOString();
@@ -204,15 +214,21 @@ async function extractWithClaude(html: string, url: string, apiKey: string): Pro
     }),
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.log('extract:claude_api_error', { url, status: res.status });
+    return null;
+  }
   const data = await res.json() as { content?: Array<{ text?: string }> };
-  const text = data.content?.[0]?.text ?? '';
+  const raw = data.content?.[0]?.text ?? '';
+  // Strip markdown code fences Claude sometimes wraps around JSON
+  const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
 
   try {
     const result = JSON.parse(text) as { title?: string; ingredients?: string[]; method?: string[]; error?: string };
     if (result.error || !result.title || !result.ingredients || !result.method) return null;
     return { title: result.title, ingredients: result.ingredients, method: result.method };
   } catch {
+    console.log('extract:claude_parse_error', { url, raw });
     return null;
   }
 }
