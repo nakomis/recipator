@@ -36,7 +36,8 @@ struct RecipeListView: View {
 
     private func firstName(from email: String) -> String {
         let local = email.components(separatedBy: "@").first ?? email
-        return local.prefix(1).uppercased() + local.dropFirst()
+        let first = local.components(separatedBy: ".").first ?? local
+        return first.prefix(1).uppercased() + first.dropFirst()
     }
 
     var body: some View {
