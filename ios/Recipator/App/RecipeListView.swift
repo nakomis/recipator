@@ -25,15 +25,7 @@ struct RecipeListView: View {
                             Button {
                                 Task { await load(recipe.recipeId) }
                             } label: {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(recipe.title)
-                                        .font(.body)
-                                        .foregroundStyle(.primary)
-                                    Text(recipe.url)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
+                                RecipeRow(recipe: recipe)
                             }
                             .swipeActions(edge: .trailing) {
                                 Button("Delete", role: .destructive) {
@@ -42,10 +34,29 @@ struct RecipeListView: View {
                             }
                         }
                     }
+                    .refreshable { await fetch() }
                 }
             }
             .navigationTitle("Recipator")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        Task { await fetch() }
+                    } label: {
+                        if isLoading {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                    }
+                    .disabled(isLoading)
+                }
+                ToolbarItem(placement: .bottomBar) {
+                    Text("v\(Bundle.main.appVersion)")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Text(auth.displayName ?? "Signed in")
@@ -59,7 +70,7 @@ struct RecipeListView: View {
             .alert("Error", isPresented: .constant(error != nil), actions: {
                 Button("OK") { error = nil }
             }, message: { Text(error ?? "") })
-            .sheet(item: $selected) { detail in
+            .fullScreenCover(item: $selected) { detail in
                 RecipeDetailView(recipe: detail)
             }
         }
@@ -97,6 +108,61 @@ struct RecipeListView: View {
     }
 }
 
+struct RecipeRow: View {
+    let recipe: RecipeListItem
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Source favicon placeholder
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.accentColor.opacity(0.12))
+                .frame(width: 44, height: 44)
+                .overlay {
+                    Image(systemName: "fork.knife")
+                        .foregroundStyle(Color.accentColor)
+                }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(recipe.title)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+
+                HStack(spacing: 6) {
+                    Text(domain(from: recipe.url))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Text("·")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+
+                    Text(formattedDate(recipe.savedAt))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func domain(from urlString: String) -> String {
+        URL(string: urlString)?.host?
+            .replacingOccurrences(of: "www.", with: "") ?? urlString
+    }
+
+    private func formattedDate(_ iso: String) -> String {
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = parser.date(from: iso) ?? ISO8601DateFormatter().date(from: iso) else {
+            return iso
+        }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
 struct RecipeDetailView: View {
     let recipe: RecipeDetail
     @Environment(\.dismiss) private var dismiss
@@ -105,23 +171,31 @@ struct RecipeDetailView: View {
         NavigationStack {
             List {
                 Section {
-                    Link(recipe.url, destination: URL(string: recipe.url)!)
-                        .font(.caption)
+                    Link(domain(from: recipe.url), destination: URL(string: recipe.url)!)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.accentColor)
                 }
 
                 Section("Ingredients") {
-                    ForEach(recipe.ingredients, id: \.self) { Text($0) }
+                    ForEach(recipe.ingredients, id: \.self) { ingredient in
+                        Label(ingredient, systemImage: "circle")
+                            .labelStyle(.titleAndIcon)
+                    }
                 }
 
                 Section("Method") {
                     ForEach(Array(recipe.method.enumerated()), id: \.offset) { i, step in
-                        Label {
+                        HStack(alignment: .top, spacing: 12) {
+                            Text("\(i + 1)")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(.white)
+                                .frame(width: 24, height: 24)
+                                .background(Color.accentColor)
+                                .clipShape(Circle())
                             Text(step)
-                        } icon: {
-                            Text("\(i + 1).")
-                                .monospacedDigit()
-                                .foregroundStyle(.secondary)
+                                .font(.body)
                         }
+                        .padding(.vertical, 2)
                     }
                 }
             }
@@ -136,6 +210,11 @@ struct RecipeDetailView: View {
                 }
             }
         }
+    }
+
+    private func domain(from urlString: String) -> String {
+        URL(string: urlString)?.host?
+            .replacingOccurrences(of: "www.", with: "") ?? urlString
     }
 }
 
