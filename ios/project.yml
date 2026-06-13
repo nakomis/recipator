@@ -86,6 +86,11 @@ targets:
                 CFBundleDisplayName: Recipator
                 CFBundleShortVersionString: '0.1.0'
                 CFBundleVersion: '1'
+                # Must match the main app — AppConfig reads Bundle.main which is
+                # the extension bundle in this context, not the host app bundle.
+                RecipatorApiBaseURL: https://api.recipator.sandbox.nakomis.com
+                RecipatorCognitoClientID: 2nqfrt40559k92m3tbtklsbqrd
+                RecipatorCognitoLoginDomain: login.sandbox.nakomis.com
                 NSExtension:
                     NSExtensionPointIdentifier: com.apple.share-services
                     NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
@@ -103,6 +108,15 @@ targets:
                 PRODUCT_BUNDLE_IDENTIFIER: com.nakomis.recipator.share
                 MARKETING_VERSION: '0.1.0'
                 CURRENT_PROJECT_VERSION: '1'
+            configs:
+                Release Production:
+                    RecipatorApiBaseURL: https://api.recipator.nakomis.com
+                    RecipatorCognitoClientID: 76fjbk2iqp7slhdsolgeotp6ih
+                    RecipatorCognitoLoginDomain: login.nakomis.com
+                Debug Production:
+                    RecipatorApiBaseURL: https://api.recipator.nakomis.com
+                    RecipatorCognitoClientID: 76fjbk2iqp7slhdsolgeotp6ih
+                    RecipatorCognitoLoginDomain: login.nakomis.com
 
     RecipatorTests:
         type: bundle.unit-test

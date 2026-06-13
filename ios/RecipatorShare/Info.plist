@@ -32,5 +32,11 @@
 		<key>NSExtensionPrincipalClass</key>
 		<string>$(PRODUCT_MODULE_NAME).ShareViewController</string>
 	</dict>
+	<key>RecipatorApiBaseURL</key>
+	<string>https://api.recipator.sandbox.nakomis.com</string>
+	<key>RecipatorCognitoClientID</key>
+	<string>2nqfrt40559k92m3tbtklsbqrd</string>
+	<key>RecipatorCognitoLoginDomain</key>
+	<string>login.sandbox.nakomis.com</string>
 </dict>
 </plist>
