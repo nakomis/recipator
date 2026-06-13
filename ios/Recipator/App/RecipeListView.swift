@@ -58,7 +58,7 @@ struct RecipeListView: View {
             .alert("Error", isPresented: .constant(error != nil), actions: {
                 Button("OK") { error = nil }
             }, message: { Text(error ?? "") })
-            .sheet(item: $selected) { detail in
+            .fullScreenCover(item: $selected) { detail in
                 RecipeDetailView(recipe: detail)
             }
         }
