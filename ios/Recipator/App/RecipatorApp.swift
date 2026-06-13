@@ -4,6 +4,11 @@ import SwiftUI
 struct RecipatorApp: App {
     @StateObject private var auth = AuthService()
 
+    init() {
+        // Force dark mode app-wide so the Cognito login page always uses the One Dark theme.
+        UIWindow.appearance().overrideUserInterfaceStyle = .dark
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {

@@ -193,8 +193,11 @@ final class AuthService: NSObject, ObservableObject {
     }
 }
 
-// presentationAnchor(for:) is in Recipator/Auth/AuthServicePresentation.swift
-// (main-app only — UIApplication.shared is unavailable in app extensions)
+extension AuthService: ASWebAuthenticationPresentationContextProviding {
+    nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        MainActor.assumeIsolated { ASPresentationAnchor() }
+    }
+}
 
 // MARK: - Helpers
 
