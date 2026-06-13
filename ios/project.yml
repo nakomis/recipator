@@ -24,13 +24,6 @@ targets:
         type: application
         platform: iOS
         deploymentTarget: '17.0'
-        preBuildScripts:
-            - name: Regenerate Xcode project from project.yml
-              script: |
-                  if [ project.yml -nt Recipator.xcodeproj/project.pbxproj ]; then
-                      xcodegen generate --spec project.yml
-                  fi
-              basedOnDependencyAnalysis: false
         sources:
             - path: Recipator
               excludes:
