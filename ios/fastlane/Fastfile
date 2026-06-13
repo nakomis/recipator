@@ -25,6 +25,7 @@ platform :ios do
       scheme:        "Recipator (Production)",
       configuration: "Release Production",
       export_method: "app-store",
+      export_xcargs: "-allowProvisioningUpdates",
     )
 
     upload_to_testflight(
