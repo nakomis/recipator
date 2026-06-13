@@ -27,7 +27,7 @@ build/
 PLAN.md
 
 # Secrets — never commit
-Shared/Secrets.swift
+ios/Shared/Secrets.swift
 
 # CDK (future)
 cdk.out/
