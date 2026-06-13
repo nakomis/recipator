@@ -9,6 +9,7 @@ struct RecipeListItem: Codable, Identifiable {
     let title: String
     let url: String
     let savedAt: String
+    let imageUrl: String?
     var id: String { recipeId }
 
     /// First name extracted from email, e.g. "martin@nakomis.com" → "Martin"
@@ -27,6 +28,8 @@ struct RecipeDetail: Codable, Identifiable {
     let ingredients: [String]
     let method: [String]
     let markdown: String
+    let imageUrl: String?
+    let imageCandidates: [String]?
     var id: String { recipeId }
 }
 
@@ -99,8 +102,10 @@ final class APIClient {
         return (try? JSONDecoder().decode(Response.self, from: data))?.recipes ?? []
     }
 
-    func getRecipe(id: String) async throws -> RecipeDetail {
-        let data = try await request("/recipes/\(id)")
+    func getRecipe(id: String, userId: String? = nil) async throws -> RecipeDetail {
+        var path = "/recipes/\(id)"
+        if let userId { path += "?userId=\(userId)" }
+        let data = try await request(path)
         guard let detail = try? JSONDecoder().decode(RecipeDetail.self, from: data) else {
             throw APIError.server(0, "Decoding failed")
         }
@@ -109,6 +114,11 @@ final class APIClient {
 
     func deleteRecipe(id: String) async throws {
         _ = try await request("/recipes/\(id)", method: "DELETE")
+    }
+
+    func updateRecipeImage(id: String, imageUrl: String) async throws {
+        struct Body: Encodable { let imageUrl: String }
+        _ = try await request("/recipes/\(id)", method: "PATCH", body: Body(imageUrl: imageUrl))
     }
 
     func reportFailure(url: String, errorType: String, htmlSnippet: String? = nil) async throws {

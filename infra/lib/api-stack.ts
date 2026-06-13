@@ -189,6 +189,17 @@ export class ApiStack extends cdk.Stack {
     });
     recipesTable.grantReadData(getFn);
 
+    // ── Lambda: PATCH /recipes/{id} ───────────────────────────────────────────
+    const updateFn = new nodejs.NodejsFunction(this, 'UpdateFn', {
+      functionName: `recipator-update-${deployEnv}`,
+      entry: path.join(__dirname, '../lambda/recipes/update.ts'),
+      handler: 'handler',
+      runtime,
+      environment: commonEnv,
+      bundling,
+    });
+    recipesTable.grantWriteData(updateFn);
+
     // ── Lambda: DELETE /recipes/{id} ──────────────────────────────────────────
     const deleteFn = new nodejs.NodejsFunction(this, 'DeleteFn', {
       functionName: `recipator-delete-${deployEnv}`,
@@ -238,6 +249,7 @@ export class ApiStack extends cdk.Stack {
         allowMethods: [
           apigwv2.CorsHttpMethod.GET,
           apigwv2.CorsHttpMethod.POST,
+          apigwv2.CorsHttpMethod.PATCH,
           apigwv2.CorsHttpMethod.DELETE,
           apigwv2.CorsHttpMethod.OPTIONS,
         ],
@@ -248,6 +260,7 @@ export class ApiStack extends cdk.Stack {
     api.addRoutes({ path: '/extract',        methods: [apigwv2.HttpMethod.POST],   integration: new HttpLambdaIntegration('ExtractInt',  extractFn) });
     api.addRoutes({ path: '/recipes',        methods: [apigwv2.HttpMethod.GET],    integration: new HttpLambdaIntegration('ListInt',     listFn) });
     api.addRoutes({ path: '/recipes/{id}',   methods: [apigwv2.HttpMethod.GET],    integration: new HttpLambdaIntegration('GetInt',      getFn) });
+    api.addRoutes({ path: '/recipes/{id}',   methods: [apigwv2.HttpMethod.PATCH],  integration: new HttpLambdaIntegration('UpdateInt',   updateFn) });
     api.addRoutes({ path: '/recipes/{id}',   methods: [apigwv2.HttpMethod.DELETE], integration: new HttpLambdaIntegration('DeleteInt',   deleteFn) });
     api.addRoutes({ path: '/failures',       methods: [apigwv2.HttpMethod.POST],   integration: new HttpLambdaIntegration('FailureInt',  reportFailureFn) });
 

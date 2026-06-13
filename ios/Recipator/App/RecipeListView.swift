@@ -55,7 +55,7 @@ struct RecipeListView: View {
                     List {
                         ForEach(displayedRecipes) { recipe in
                             Button {
-                                Task { await load(recipe.recipeId) }
+                                Task { await load(recipe.recipeId, userId: recipe.userId) }
                             } label: {
                                 RecipeRow(recipe: recipe, showOwner: selectedEmail == everyoneTag)
                             }
@@ -140,9 +140,9 @@ struct RecipeListView: View {
         }
     }
 
-    private func load(_ id: String) async {
+    private func load(_ id: String, userId: String? = nil) async {
         do {
-            selected = try await APIClient.shared.getRecipe(id: id)
+            selected = try await APIClient.shared.getRecipe(id: id, userId: userId)
         } catch {
             self.error = error.localizedDescription
         }
@@ -164,14 +164,21 @@ struct RecipeRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Source favicon placeholder
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.accentColor.opacity(0.12))
-                .frame(width: 44, height: 44)
-                .overlay {
-                    Image(systemName: "fork.knife")
-                        .foregroundStyle(Color.accentColor)
+            Group {
+                if let imageUrl = recipe.imageUrl, let url = URL(string: imageUrl) {
+                    AsyncImage(url: url) { phase in
+                        if let image = phase.image {
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } else {
+                            placeholderIcon
+                        }
+                    }
+                } else {
+                    placeholderIcon
                 }
+            }
+            .frame(width: 44, height: 44)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(recipe.title)
@@ -203,6 +210,12 @@ struct RecipeRow: View {
         .padding(.vertical, 4)
     }
 
+    private var placeholderIcon: some View {
+        RoundedRectangle(cornerRadius: 8)
+            .fill(Color.accentColor.opacity(0.12))
+            .overlay { Image(systemName: "fork.knife").foregroundStyle(Color.accentColor) }
+    }
+
     private func domain(from urlString: String) -> String {
         URL(string: urlString)?.host?
             .replacingOccurrences(of: "www.", with: "") ?? urlString
@@ -227,6 +240,22 @@ struct RecipeDetailView: View {
     var body: some View {
         NavigationStack {
             List {
+                if let imageUrl = recipe.imageUrl, let url = URL(string: imageUrl) {
+                    Section {
+                        AsyncImage(url: url) { phase in
+                            if let image = phase.image {
+                                image.resizable().aspectRatio(contentMode: .fill)
+                            } else {
+                                Color.secondary.opacity(0.1).overlay { ProgressView() }
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 220)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    }
+                }
+
                 Section {
                     Link(domain(from: recipe.url), destination: URL(string: recipe.url)!)
                         .font(.subheadline)
