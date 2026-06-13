@@ -1,19 +1,51 @@
 import SwiftUI
 
+private let everyoneTag = "__everyone__"
+
 struct RecipeListView: View {
     @EnvironmentObject private var auth: AuthService
-    @State private var recipes: [RecipeListItem] = []
+    @State private var allRecipes: [RecipeListItem] = []
     @State private var selected: RecipeDetail?
     @State private var isLoading = false
     @State private var error: String?
+    @State private var selectedEmail: String = ""
+
+    private var myEmail: String { auth.displayName ?? "" }
+
+    // Current user first, then others, derived from loaded data.
+    private var owners: [(email: String, firstName: String)] {
+        var seen = Set<String>()
+        var result: [(String, String)] = []
+        if !myEmail.isEmpty {
+            seen.insert(myEmail)
+            result.append((myEmail, firstName(from: myEmail)))
+        }
+        for recipe in allRecipes {
+            if let e = recipe.userEmail, !seen.contains(e) {
+                seen.insert(e)
+                result.append((e, recipe.ownerFirstName ?? firstName(from: e)))
+            }
+        }
+        return result
+    }
+
+    private var displayedRecipes: [RecipeListItem] {
+        guard selectedEmail != everyoneTag, !selectedEmail.isEmpty else { return allRecipes }
+        return allRecipes.filter { $0.userEmail == selectedEmail }
+    }
+
+    private func firstName(from email: String) -> String {
+        let local = email.components(separatedBy: "@").first ?? email
+        return local.prefix(1).uppercased() + local.dropFirst()
+    }
 
     var body: some View {
         NavigationStack {
             Group {
-                if isLoading && recipes.isEmpty {
+                if isLoading && allRecipes.isEmpty {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if recipes.isEmpty {
+                } else if displayedRecipes.isEmpty {
                     ContentUnavailableView(
                         "No Recipes Yet",
                         systemImage: "fork.knife",
@@ -21,11 +53,11 @@ struct RecipeListView: View {
                     )
                 } else {
                     List {
-                        ForEach(recipes) { recipe in
+                        ForEach(displayedRecipes) { recipe in
                             Button {
                                 Task { await load(recipe.recipeId) }
                             } label: {
-                                RecipeRow(recipe: recipe)
+                                RecipeRow(recipe: recipe, showOwner: selectedEmail == everyoneTag)
                             }
                             .swipeActions(edge: .trailing) {
                                 Button("Delete", role: .destructive) {
@@ -39,6 +71,16 @@ struct RecipeListView: View {
             }
             .navigationTitle("Recipator")
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Picker("", selection: $selectedEmail) {
+                        ForEach(owners, id: \.email) { owner in
+                            Text(owner.firstName).tag(owner.email)
+                        }
+                        Text("Everyone").tag(everyoneTag)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 200)
+                }
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         Task { await fetch() }
@@ -74,7 +116,12 @@ struct RecipeListView: View {
                 RecipeDetailView(recipe: detail)
             }
         }
-        .task { await fetch() }
+        .task {
+            if selectedEmail.isEmpty {
+                selectedEmail = myEmail.isEmpty ? everyoneTag : myEmail
+            }
+            await fetch()
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             Task { await fetch() }
         }
@@ -84,7 +131,10 @@ struct RecipeListView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            recipes = try await APIClient.shared.listRecipes()
+            allRecipes = try await APIClient.shared.listRecipes(all: true)
+            if selectedEmail.isEmpty {
+                selectedEmail = myEmail.isEmpty ? everyoneTag : myEmail
+            }
         } catch {
             self.error = error.localizedDescription
         }
@@ -101,7 +151,7 @@ struct RecipeListView: View {
     private func delete(_ id: String) async {
         do {
             try await APIClient.shared.deleteRecipe(id: id)
-            recipes.removeAll { $0.recipeId == id }
+            allRecipes.removeAll { $0.recipeId == id }
         } catch {
             self.error = error.localizedDescription
         }
@@ -110,6 +160,7 @@ struct RecipeListView: View {
 
 struct RecipeRow: View {
     let recipe: RecipeListItem
+    var showOwner: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -129,14 +180,20 @@ struct RecipeRow: View {
                     .lineLimit(2)
 
                 HStack(spacing: 6) {
+                    if showOwner, let name = recipe.ownerFirstName {
+                        Text(name)
+                            .font(.caption.bold())
+                            .foregroundStyle(Color.accentColor)
+                        Text("·")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                     Text(domain(from: recipe.url))
                         .font(.caption)
                         .foregroundStyle(.secondary)
-
                     Text("·")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
-
                     Text(formattedDate(recipe.savedAt))
                         .font(.caption)
                         .foregroundStyle(.secondary)
