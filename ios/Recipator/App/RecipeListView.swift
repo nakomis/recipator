@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct RecipeListView: View {
+    @EnvironmentObject private var auth: AuthService
     @State private var recipes: [(filename: String, content: String)] = []
     @State private var selectedContent: String?
 
@@ -31,6 +32,17 @@ struct RecipeListView: View {
                 }
             }
             .navigationTitle("Recipator")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Text(auth.displayName ?? "Signed in")
+                        Divider()
+                        Button("Sign Out", role: .destructive) { auth.signOut() }
+                    } label: {
+                        Image(systemName: "person.circle")
+                    }
+                }
+            }
             .sheet(item: $selectedContent) { content in
                 RecipeDetailView(markdown: content)
             }

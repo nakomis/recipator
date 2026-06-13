@@ -5,9 +5,11 @@ struct ShareView: View {
     let extensionContext: NSExtensionContext?
     let onDismiss: () -> Void
 
-    @State private var phase: Phase = .extracting
+    @State private var phase: Phase = .checkingAuth
 
     enum Phase {
+        case checkingAuth
+        case notSignedIn
         case extracting
         case preview(ExtractedRecipe)
         case saved
@@ -31,6 +33,24 @@ struct ShareView: View {
     @ViewBuilder
     private var content: some View {
         switch phase {
+        case .checkingAuth:
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+        case .notSignedIn:
+            VStack(spacing: 16) {
+                Image(systemName: "person.crop.circle.badge.exclamationmark")
+                    .font(.system(size: 48))
+                    .foregroundStyle(.orange)
+                Text("Not signed in")
+                    .font(.title3.bold())
+                Text("Open the Recipator app and sign in first.")
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
         case .extracting:
             VStack(spacing: 16) {
                 ProgressView()
@@ -76,10 +96,20 @@ struct ShareView: View {
     }
 
     private func run() async {
-        guard let url = await resolveURL() else {
-            phase = .failed(RecipeError.noURLFound.localizedDescription ?? "No URL found.")
+        // Check for a valid Cognito token in the shared Keychain.
+        // The extension can't run the OAuth flow itself, so we just gate here.
+        guard let tokens = try? TokenStore.load(), tokens.expiresAt > Date() else {
+            phase = .notSignedIn
             return
         }
+
+        guard let url = await resolveURL() else {
+            phase = .failed(RecipeError.noURLFound.localizedDescription)
+            return
+        }
+
+        // Spike: still does local extraction. RECP-11 will replace this with
+        // a POST /extract call using tokens.accessToken as the Bearer header.
         let extractor = RecipeExtractor(apiKey: Secrets.anthropicAPIKey)
         do {
             let recipe = try await extractor.extract(from: url)

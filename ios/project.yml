@@ -13,6 +13,12 @@ settings:
         TARGETED_DEVICE_FAMILY: '1,2'
         SUPPORTS_MACCATALYST: NO
 
+configs:
+    Debug Sandbox:    debug
+    Release Sandbox:  release
+    Debug Production: debug
+    Release Production: release
+
 targets:
     Recipator:
         type: application
@@ -36,16 +42,34 @@ targets:
                     - UIInterfaceOrientationPortrait
                     - UIInterfaceOrientationLandscapeLeft
                     - UIInterfaceOrientationLandscapeRight
+                CFBundleURLTypes:
+                    - CFBundleURLSchemes:
+                          - com.nakomis.recipator
+                # Sandbox defaults — overridden per config below
+                RecipatorApiBaseURL: https://api.recipator.sandbox.nakomis.com
+                RecipatorCognitoClientID: 2nqfrt40559k92m3tbtklsbqrd
+                RecipatorCognitoLoginDomain: login.sandbox.nakomis.com
         entitlements:
             path: Recipator/Resources/Recipator.entitlements
             properties:
                 com.apple.security.application-groups:
                     - group.com.nakomis.recipator
+                keychain-access-groups:
+                    - $(AppIdentifierPrefix)com.nakomis.recipator
         settings:
             base:
                 PRODUCT_BUNDLE_IDENTIFIER: com.nakomis.recipator
                 MARKETING_VERSION: '0.1.0'
                 CURRENT_PROJECT_VERSION: '1'
+            configs:
+                Release Production:
+                    RecipatorApiBaseURL: https://api.recipator.nakomis.com
+                    RecipatorCognitoClientID: 76fjbk2iqp7slhdsolgeotp6ih
+                    RecipatorCognitoLoginDomain: login.nakomis.com
+                Debug Production:
+                    RecipatorApiBaseURL: https://api.recipator.nakomis.com
+                    RecipatorCognitoClientID: 76fjbk2iqp7slhdsolgeotp6ih
+                    RecipatorCognitoLoginDomain: login.nakomis.com
         dependencies:
             - target: RecipatorShare
 
@@ -72,6 +96,8 @@ targets:
             properties:
                 com.apple.security.application-groups:
                     - group.com.nakomis.recipator
+                keychain-access-groups:
+                    - $(AppIdentifierPrefix)com.nakomis.recipator
         settings:
             base:
                 PRODUCT_BUNDLE_IDENTIFIER: com.nakomis.recipator.share
@@ -91,11 +117,20 @@ targets:
                 GENERATE_INFOPLIST_FILE: YES
 
 schemes:
-    Recipator:
+    Recipator (Sandbox):
         build:
             targets:
                 Recipator: all
         run:
-            config: Debug
+            config: Debug Sandbox
         archive:
-            config: Release
+            config: Release Sandbox
+
+    Recipator (Production):
+        build:
+            targets:
+                Recipator: all
+        run:
+            config: Debug Production
+        archive:
+            config: Release Production
