@@ -24,6 +24,13 @@ targets:
         type: application
         platform: iOS
         deploymentTarget: '17.0'
+        preBuildScripts:
+            - name: Regenerate Xcode project from project.yml
+              script: |
+                  if [ project.yml -nt Recipator.xcodeproj/project.pbxproj ]; then
+                      xcodegen generate --spec project.yml
+                  fi
+              basedOnDependencyAnalysis: false
         sources:
             - path: Recipator
               excludes:
@@ -45,10 +52,10 @@ targets:
                 CFBundleURLTypes:
                     - CFBundleURLSchemes:
                           - com.nakomis.recipator
-                # Sandbox defaults — overridden per config below
-                RecipatorApiBaseURL: https://api.recipator.sandbox.nakomis.com
-                RecipatorCognitoClientID: 2nqfrt40559k92m3tbtklsbqrd
-                RecipatorCognitoLoginDomain: login.sandbox.nakomis.com
+                # Values injected at build time via xcconfig — see settings below
+                RecipatorApiBaseURL: $(RecipatorApiBaseURL)
+                RecipatorCognitoClientID: $(RecipatorCognitoClientID)
+                RecipatorCognitoLoginDomain: $(RecipatorCognitoLoginDomain)
         entitlements:
             path: Recipator/Resources/Recipator.entitlements
             properties:
@@ -61,6 +68,9 @@ targets:
                 PRODUCT_BUNDLE_IDENTIFIER: com.nakomis.recipator
                 MARKETING_VERSION: '0.1.0'
                 CURRENT_PROJECT_VERSION: '1'
+                RecipatorApiBaseURL: https://api.recipator.sandbox.nakomis.com
+                RecipatorCognitoClientID: 2nqfrt40559k92m3tbtklsbqrd
+                RecipatorCognitoLoginDomain: login.sandbox.nakomis.com
             configs:
                 Release Production:
                     RecipatorApiBaseURL: https://api.recipator.nakomis.com
@@ -86,11 +96,10 @@ targets:
                 CFBundleDisplayName: Recipator
                 CFBundleShortVersionString: '0.1.0'
                 CFBundleVersion: '1'
-                # Must match the main app — AppConfig reads Bundle.main which is
-                # the extension bundle in this context, not the host app bundle.
-                RecipatorApiBaseURL: https://api.recipator.sandbox.nakomis.com
-                RecipatorCognitoClientID: 2nqfrt40559k92m3tbtklsbqrd
-                RecipatorCognitoLoginDomain: login.sandbox.nakomis.com
+                # Values injected at build time via xcconfig — see settings below
+                RecipatorApiBaseURL: $(RecipatorApiBaseURL)
+                RecipatorCognitoClientID: $(RecipatorCognitoClientID)
+                RecipatorCognitoLoginDomain: $(RecipatorCognitoLoginDomain)
                 NSExtension:
                     NSExtensionPointIdentifier: com.apple.share-services
                     NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
@@ -108,6 +117,9 @@ targets:
                 PRODUCT_BUNDLE_IDENTIFIER: com.nakomis.recipator.share
                 MARKETING_VERSION: '0.1.0'
                 CURRENT_PROJECT_VERSION: '1'
+                RecipatorApiBaseURL: https://api.recipator.sandbox.nakomis.com
+                RecipatorCognitoClientID: 2nqfrt40559k92m3tbtklsbqrd
+                RecipatorCognitoLoginDomain: login.sandbox.nakomis.com
             configs:
                 Release Production:
                     RecipatorApiBaseURL: https://api.recipator.nakomis.com
