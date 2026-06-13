@@ -23,7 +23,7 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
       ...(includeDeleted ? {} : {
         FilterExpression: notDeleted,
       }),
-      ProjectionExpression: 'recipeId, userId, userEmail, title, #url, savedAt, deletedAt',
+      ProjectionExpression: 'recipeId, userId, userEmail, title, #url, savedAt, deletedAt, imageUrl',
       ExpressionAttributeNames: { '#url': 'url' },
     }));
     items = (res.Items ?? []) as Record<string, unknown>[];
@@ -35,7 +35,7 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
       ...(includeDeleted ? {} : {
         FilterExpression: notDeleted,
       }),
-      ProjectionExpression: 'recipeId, userId, userEmail, title, #url, savedAt, deletedAt',
+      ProjectionExpression: 'recipeId, userId, userEmail, title, #url, savedAt, deletedAt, imageUrl',
       ExpressionAttributeNames: { '#url': 'url' },
     }));
     items = (res.Items ?? []) as Record<string, unknown>[];

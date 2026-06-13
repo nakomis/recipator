@@ -124,12 +124,31 @@ struct RecipePreviewView: View {
     let recipe: RecipeDetail
     let onDismiss: () -> Void
 
+    @State private var selectedImageUrl: String?
+    @State private var isSavingImage = false
+
+    private var candidates: [String] { recipe.imageCandidates ?? [] }
+
     var body: some View {
         List {
             Section {
                 Text(recipe.title).font(.headline)
                 Text(recipe.url).font(.caption).foregroundStyle(.secondary)
             }
+
+            if !candidates.isEmpty {
+                Section("Choose a photo") {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(candidates, id: \.self) { urlString in
+                                thumbnailView(for: urlString)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+            }
+
             Section("Ingredients") {
                 ForEach(recipe.ingredients, id: \.self) { Text($0) }
             }
@@ -144,16 +163,60 @@ struct RecipePreviewView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Button(action: onDismiss) {
-                Label("Done — Recipe Saved", systemImage: "checkmark.circle.fill")
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.green)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            Button {
+                Task {
+                    if let imageUrl = selectedImageUrl {
+                        isSavingImage = true
+                        try? await APIClient.shared.updateRecipeImage(id: recipe.recipeId, imageUrl: imageUrl)
+                        isSavingImage = false
+                    }
+                    onDismiss()
+                }
+            } label: {
+                Group {
+                    if isSavingImage {
+                        ProgressView()
+                    } else {
+                        Label("Done — Recipe Saved", systemImage: "checkmark.circle.fill")
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.green)
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
+            .disabled(isSavingImage)
             .padding()
             .background(.background)
+        }
+    }
+
+    @ViewBuilder
+    private func thumbnailView(for urlString: String) -> some View {
+        let isSelected = selectedImageUrl == urlString
+        Group {
+            if let url = URL(string: urlString) {
+                AsyncImage(url: url) { phase in
+                    if let image = phase.image {
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    } else {
+                        Color.secondary.opacity(0.15)
+                            .overlay { ProgressView() }
+                    }
+                }
+            } else {
+                Color.secondary.opacity(0.15)
+            }
+        }
+        .frame(width: 100, height: 100)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
+        }
+        .onTapGesture {
+            selectedImageUrl = isSelected ? nil : urlString
         }
     }
 }

@@ -56,9 +56,10 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
 
   if (!extracted) return err(422, 'Could not extract a recipe from this page');
 
-  const recipeId  = randomUUID();
-  const savedAt   = new Date().toISOString();
-  const markdown  = buildMarkdown(extracted, url.toString());
+  const recipeId       = randomUUID();
+  const savedAt        = new Date().toISOString();
+  const markdown       = buildMarkdown(extracted, url.toString());
+  const imageCandidates = extractImageCandidates(html, url.toString());
 
   const item = {
     userId,
@@ -73,7 +74,49 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
   };
 
   await dynamo.send(new PutCommand({ TableName: RECIPES_TABLE, Item: item }));
-  return ok(item);
+  return ok({ ...item, imageCandidates });
+}
+
+// ── Image candidate extraction ────────────────────────────────────────────────
+
+function extractAttr(tag: string, attr: string): string | null {
+  const m = tag.match(new RegExp(`${attr}=["']([^"'\\s>]+)["']`, 'i'));
+  return m?.[1] ?? null;
+}
+
+function extractImageCandidates(html: string, baseUrl: string): string[] {
+  const candidates: string[] = [];
+  const base = new URL(baseUrl);
+
+  // og:image first — typically the hero
+  const ogMatch =
+    html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+  if (ogMatch?.[1]) {
+    try { candidates.push(new URL(ogMatch[1], base).toString()); } catch { /* skip */ }
+  }
+
+  // <img> tags with explicit width/height >= 300, or no size info (unknown = possibly large)
+  const imgRe = /<img[^>]+>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = imgRe.exec(html)) !== null && candidates.length < 10) {
+    const tag = m[0];
+    const src = extractAttr(tag, 'src') || extractAttr(tag, 'data-src') || extractAttr(tag, 'data-lazy-src');
+    if (!src) continue;
+    if (src.startsWith('data:') || /\.svg(\?|$)/i.test(src)) continue;
+
+    const w = parseInt(extractAttr(tag, 'width') ?? '0', 10);
+    const h = parseInt(extractAttr(tag, 'height') ?? '0', 10);
+    // Skip images that are explicitly declared small
+    if (w > 0 && w < 200 && h > 0 && h < 200) continue;
+
+    let abs: string;
+    try { abs = new URL(src, base).toString(); } catch { continue; }
+
+    if (!candidates.includes(abs)) candidates.push(abs);
+  }
+
+  return candidates.slice(0, 5);
 }
 
 // ── JSON-LD extraction ────────────────────────────────────────────────────────
