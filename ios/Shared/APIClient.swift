@@ -22,6 +22,11 @@ struct RecipeListItem: Codable, Identifiable {
     }
 }
 
+struct GroupMember: Codable {
+    let userId: String
+    let displayName: String
+}
+
 struct RecipeDetail: Codable, Identifiable {
     let recipeId: String
     let title: String
@@ -121,6 +126,12 @@ final class APIClient {
     func updateRecipeImage(id: String, imageUrl: String) async throws {
         struct Body: Encodable { let imageUrl: String }
         _ = try await request("/recipes/\(id)", method: "PATCH", body: Body(imageUrl: imageUrl))
+    }
+
+    func getConfig() async throws -> [GroupMember] {
+        let data = try await request("/config")
+        struct Response: Decodable { let groupMembers: [GroupMember] }
+        return (try? JSONDecoder().decode(Response.self, from: data))?.groupMembers ?? []
     }
 
     func reportFailure(url: String, errorType: String, htmlSnippet: String? = nil) async throws {

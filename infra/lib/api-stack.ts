@@ -127,6 +127,12 @@ export class ApiStack extends cdk.Stack {
       description: `Recipator Cognito app client ID (${deployEnv})`,
     });
 
+    // ── Group members config ──────────────────────────────────────────────────
+    // Managed out-of-band (not by CDK) so group membership can be updated without a deploy.
+    const groupMembersParam = ssm.StringParameter.fromStringParameterName(
+      this, 'GroupMembersParam', `/recipator/${deployEnv}/group-members`,
+    );
+
     // ── Anthropic API key (placeholder; overwrite after first deploy) ─────────
     // Deploy first, then: aws ssm put-parameter --overwrite --name /recipator/{env}/anthropic-api-key --value "sk-ant-..."
     const anthropicKeyParam = new ssm.StringParameter(this, 'AnthropicKeyParam', {
@@ -146,6 +152,17 @@ export class ApiStack extends cdk.Stack {
       FAILURES_TABLE: failuresTable.tableName,
       DEPLOY_ENV: deployEnv,
     };
+
+    // ── Lambda: GET /config ───────────────────────────────────────────────────
+    const configFn = new nodejs.NodejsFunction(this, 'ConfigFn', {
+      functionName: `recipator-config-${deployEnv}`,
+      entry: path.join(__dirname, '../lambda/config/get.ts'),
+      handler: 'handler',
+      runtime,
+      environment: { ...commonEnv, GROUP_MEMBERS_PARAM: groupMembersParam.parameterName },
+      bundling,
+    });
+    groupMembersParam.grantRead(configFn);
 
     // ── Lambda: POST /extract ─────────────────────────────────────────────────
     const extractFn = new nodejs.NodejsFunction(this, 'ExtractFn', {
@@ -257,6 +274,7 @@ export class ApiStack extends cdk.Stack {
       },
     });
 
+    api.addRoutes({ path: '/config',         methods: [apigwv2.HttpMethod.GET],    integration: new HttpLambdaIntegration('ConfigInt',   configFn) });
     api.addRoutes({ path: '/extract',        methods: [apigwv2.HttpMethod.POST],   integration: new HttpLambdaIntegration('ExtractInt',  extractFn) });
     api.addRoutes({ path: '/recipes',        methods: [apigwv2.HttpMethod.GET],    integration: new HttpLambdaIntegration('ListInt',     listFn) });
     api.addRoutes({ path: '/recipes/{id}',   methods: [apigwv2.HttpMethod.GET],    integration: new HttpLambdaIntegration('GetInt',      getFn) });

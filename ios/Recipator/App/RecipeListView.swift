@@ -11,6 +11,12 @@ struct RecipeListView: View {
     // Filter key: userId (sub UUID) — consistent across access token & stored data.
     // The segmented picker uses userId as the tag value; everyoneTag is the sentinel for "all".
     @State private var selectedUserId: String = ""
+    @State private var groupMembers: [GroupMember] = []
+
+    private var isInGroup: Bool {
+        guard let uid = auth.userId else { return false }
+        return groupMembers.contains { $0.userId == uid }
+    }
 
     private var myUserId: String { auth.userId ?? "" }
 
@@ -76,15 +82,17 @@ struct RecipeListView: View {
             }
             .navigationTitle("Recipator")
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Picker("", selection: $selectedUserId) {
-                        ForEach(owners, id: \.userId) { owner in
-                            Text(owner.firstName).tag(owner.userId)
+                if isInGroup {
+                    ToolbarItem(placement: .principal) {
+                        Picker("", selection: $selectedUserId) {
+                            ForEach(owners, id: \.userId) { owner in
+                                Text(owner.firstName).tag(owner.userId)
+                            }
+                            Text("Everyone").tag(everyoneTag)
                         }
-                        Text("Everyone").tag(everyoneTag)
+                        .pickerStyle(.segmented)
+                        .frame(minWidth: 200, maxWidth: 320)
                     }
-                    .pickerStyle(.segmented)
-                    .frame(minWidth: 200, maxWidth: 320)
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -125,11 +133,17 @@ struct RecipeListView: View {
             if selectedUserId.isEmpty {
                 selectedUserId = myUserId.isEmpty ? everyoneTag : myUserId
             }
-            await fetch()
+            async let config: () = loadConfig()
+            async let recipes: () = fetch()
+            _ = await (config, recipes)
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             Task { await fetch() }
         }
+    }
+
+    private func loadConfig() async {
+        groupMembers = (try? await APIClient.shared.getConfig()) ?? []
     }
 
     private func fetch() async {
