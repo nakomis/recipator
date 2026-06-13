@@ -39,3 +39,6 @@ lcov.info
 
 # Node (Chrome extension, future)
 node_modules/
+
+# Local scripts not for version control
+ignored/
