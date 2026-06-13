@@ -1,2 +1,6 @@
 fastlane/README.md
 fastlane/report.xml
+
+# Build outputs
+*.ipa
+*.dSYM.zip
