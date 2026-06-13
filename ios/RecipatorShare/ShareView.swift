@@ -195,28 +195,30 @@ struct RecipePreviewView: View {
     @ViewBuilder
     private func thumbnailView(for urlString: String) -> some View {
         let isSelected = selectedImageUrl == urlString
-        Group {
-            if let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    if let image = phase.image {
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } else {
-                        Color.secondary.opacity(0.15)
-                            .overlay { ProgressView() }
+        Button {
+            selectedImageUrl = isSelected ? nil : urlString
+        } label: {
+            Group {
+                if let url = URL(string: urlString) {
+                    AsyncImage(url: url) { phase in
+                        if let image = phase.image {
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } else {
+                            Color.secondary.opacity(0.15)
+                                .overlay { ProgressView() }
+                        }
                     }
+                } else {
+                    Color.secondary.opacity(0.15)
                 }
-            } else {
-                Color.secondary.opacity(0.15)
+            }
+            .frame(width: 100, height: 100)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay {
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
             }
         }
-        .frame(width: 100, height: 100)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
-        }
-        .onTapGesture {
-            selectedImageUrl = isSelected ? nil : urlString
-        }
+        .buttonStyle(.plain)
     }
 }

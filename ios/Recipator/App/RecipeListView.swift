@@ -8,32 +8,34 @@ struct RecipeListView: View {
     @State private var selected: RecipeDetail?
     @State private var isLoading = false
     @State private var error: String?
-    @State private var selectedEmail: String = ""
+    // Filter key: userId (sub UUID) — consistent across access token & stored data.
+    // The segmented picker uses userId as the tag value; everyoneTag is the sentinel for "all".
+    @State private var selectedUserId: String = ""
 
-    private var myEmail: String { auth.email ?? "" }
+    private var myUserId: String { auth.userId ?? "" }
 
-    // Current user first, then others, derived from loaded data.
-    private var owners: [(email: String, firstName: String)] {
+    // Current user first, then others, deduplicated by userId (not email, which can vary).
+    private var owners: [(userId: String, firstName: String)] {
         var seen = Set<String>()
         var result: [(String, String)] = []
-        if !myEmail.isEmpty {
-            seen.insert(myEmail)
-            // Prefer the Cognito username ("nakomis" → "Nakomis") over email-derived name
-            let myLabel = auth.displayName.map { firstName(from: $0) } ?? firstName(from: myEmail)
-            result.append((myEmail, myLabel))
+        let me = myUserId
+        if !me.isEmpty {
+            seen.insert(me)
+            let myLabel = auth.displayName.map { firstName(from: $0) } ?? "Me"
+            result.append((me, myLabel))
         }
         for recipe in allRecipes {
-            if let e = recipe.userEmail, !seen.contains(e) {
-                seen.insert(e)
-                result.append((e, recipe.ownerFirstName ?? firstName(from: e)))
+            if let uid = recipe.userId, !seen.contains(uid) {
+                seen.insert(uid)
+                result.append((uid, recipe.ownerFirstName ?? uid))
             }
         }
         return result
     }
 
     private var displayedRecipes: [RecipeListItem] {
-        guard selectedEmail != everyoneTag, !selectedEmail.isEmpty else { return allRecipes }
-        return allRecipes.filter { $0.userEmail == selectedEmail }
+        guard selectedUserId != everyoneTag, !selectedUserId.isEmpty else { return allRecipes }
+        return allRecipes.filter { $0.userId == selectedUserId }
     }
 
     private func firstName(from email: String) -> String {
@@ -60,7 +62,7 @@ struct RecipeListView: View {
                             Button {
                                 Task { await load(recipe.recipeId, userId: recipe.userId) }
                             } label: {
-                                RecipeRow(recipe: recipe, showOwner: selectedEmail == everyoneTag)
+                                RecipeRow(recipe: recipe, showOwner: selectedUserId == everyoneTag)
                             }
                             .swipeActions(edge: .trailing) {
                                 Button("Delete", role: .destructive) {
@@ -75,9 +77,9 @@ struct RecipeListView: View {
             .navigationTitle("Recipator")
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Picker("", selection: $selectedEmail) {
-                        ForEach(owners, id: \.email) { owner in
-                            Text(owner.firstName).tag(owner.email)
+                    Picker("", selection: $selectedUserId) {
+                        ForEach(owners, id: \.userId) { owner in
+                            Text(owner.firstName).tag(owner.userId)
                         }
                         Text("Everyone").tag(everyoneTag)
                     }
@@ -120,8 +122,8 @@ struct RecipeListView: View {
             }
         }
         .task {
-            if selectedEmail.isEmpty {
-                selectedEmail = myEmail.isEmpty ? everyoneTag : myEmail
+            if selectedUserId.isEmpty {
+                selectedUserId = myUserId.isEmpty ? everyoneTag : myUserId
             }
             await fetch()
         }
@@ -135,8 +137,8 @@ struct RecipeListView: View {
         defer { isLoading = false }
         do {
             allRecipes = try await APIClient.shared.listRecipes(all: true)
-            if selectedEmail.isEmpty {
-                selectedEmail = myEmail.isEmpty ? everyoneTag : myEmail
+            if selectedUserId.isEmpty {
+                selectedUserId = myUserId.isEmpty ? everyoneTag : myUserId
             }
         } catch {
             self.error = error.localizedDescription

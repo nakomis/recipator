@@ -12,7 +12,8 @@ import Foundation
 final class AuthService: NSObject, ObservableObject {
     @Published private(set) var isSignedIn = false
     @Published private(set) var displayName: String?  // Cognito username, e.g. "nakomis"
-    @Published private(set) var email: String?         // email claim, used for recipe filtering
+    @Published private(set) var email: String?
+    @Published private(set) var userId: String?        // sub — stable key matching DynamoDB userId
     @Published private(set) var lastError: String?
 
     private var tokens: StoredTokens?
@@ -27,6 +28,7 @@ final class AuthService: NSObject, ObservableObject {
             let c = claims(from: stored.idToken)
             displayName = c?["cognito:username"] as? String
             email = c?["email"] as? String
+            userId = c?["sub"] as? String
         } else if let refreshToken = stored.refreshToken {
             await refresh(using: refreshToken)
         }
@@ -75,6 +77,7 @@ final class AuthService: NSObject, ObservableObject {
         isSignedIn = false
         displayName = nil
         email = nil
+        userId = nil
     }
 
     // MARK: - Private
@@ -146,6 +149,7 @@ final class AuthService: NSObject, ObservableObject {
         let c = claims(from: stored.idToken)
         displayName = c?["cognito:username"] as? String
         email = c?["email"] as? String
+        userId = c?["sub"] as? String
     }
 
     // MARK: - PKCE helpers

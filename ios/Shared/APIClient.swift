@@ -14,8 +14,9 @@ struct RecipeListItem: Codable, Identifiable {
 
     /// First name extracted from email, e.g. "martin@nakomis.com" → "Martin"
     var ownerFirstName: String? {
-        guard let email = userEmail, !email.isEmpty else { return nil }
-        let local = email.components(separatedBy: "@").first ?? email
+        guard let handle = userEmail, !handle.isEmpty else { return nil }
+        // handle is either an email or a Cognito username (no @)
+        let local = handle.components(separatedBy: "@").first ?? handle
         let first = local.components(separatedBy: ".").first ?? local
         return first.prefix(1).uppercased() + first.dropFirst()
     }
