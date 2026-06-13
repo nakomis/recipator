@@ -16,7 +16,8 @@ struct RecipeListItem: Codable, Identifiable {
     var ownerFirstName: String? {
         guard let email = userEmail, !email.isEmpty else { return nil }
         let local = email.components(separatedBy: "@").first ?? email
-        return local.prefix(1).uppercased() + local.dropFirst()
+        let first = local.components(separatedBy: ".").first ?? local
+        return first.prefix(1).uppercased() + first.dropFirst()
     }
 }
 

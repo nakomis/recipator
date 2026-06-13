@@ -10,7 +10,7 @@ struct RecipeListView: View {
     @State private var error: String?
     @State private var selectedEmail: String = ""
 
-    private var myEmail: String { auth.displayName ?? "" }
+    private var myEmail: String { auth.email ?? "" }
 
     // Current user first, then others, derived from loaded data.
     private var owners: [(email: String, firstName: String)] {
@@ -18,7 +18,9 @@ struct RecipeListView: View {
         var result: [(String, String)] = []
         if !myEmail.isEmpty {
             seen.insert(myEmail)
-            result.append((myEmail, firstName(from: myEmail)))
+            // Prefer the Cognito username ("nakomis" → "Nakomis") over email-derived name
+            let myLabel = auth.displayName.map { firstName(from: $0) } ?? firstName(from: myEmail)
+            result.append((myEmail, myLabel))
         }
         for recipe in allRecipes {
             if let e = recipe.userEmail, !seen.contains(e) {
@@ -36,7 +38,8 @@ struct RecipeListView: View {
 
     private func firstName(from email: String) -> String {
         let local = email.components(separatedBy: "@").first ?? email
-        return local.prefix(1).uppercased() + local.dropFirst()
+        let first = local.components(separatedBy: ".").first ?? local
+        return first.prefix(1).uppercased() + first.dropFirst()
     }
 
     var body: some View {
