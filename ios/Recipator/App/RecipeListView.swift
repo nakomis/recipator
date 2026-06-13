@@ -39,6 +39,18 @@ struct RecipeListView: View {
             }
             .navigationTitle("Recipator")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        Task { await fetch() }
+                    } label: {
+                        if isLoading {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                    }
+                    .disabled(isLoading)
+                }
                 ToolbarItem(placement: .bottomBar) {
                     Text("v\(Bundle.main.appVersion)")
                         .font(.caption2)
