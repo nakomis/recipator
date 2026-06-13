@@ -55,7 +55,7 @@ struct RecipeListView: View {
                     List {
                         ForEach(displayedRecipes) { recipe in
                             Button {
-                                Task { await load(recipe.recipeId) }
+                                Task { await load(recipe.recipeId, userId: recipe.userId) }
                             } label: {
                                 RecipeRow(recipe: recipe, showOwner: selectedEmail == everyoneTag)
                             }
@@ -140,9 +140,9 @@ struct RecipeListView: View {
         }
     }
 
-    private func load(_ id: String) async {
+    private func load(_ id: String, userId: String? = nil) async {
         do {
-            selected = try await APIClient.shared.getRecipe(id: id)
+            selected = try await APIClient.shared.getRecipe(id: id, userId: userId)
         } catch {
             self.error = error.localizedDescription
         }

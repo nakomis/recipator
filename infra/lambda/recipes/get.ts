@@ -6,11 +6,13 @@ const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const RECIPES_TABLE = process.env.RECIPES_TABLE!;
 
 export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<APIGatewayProxyResultV2> {
-  const userId   = event.requestContext.authorizer?.jwt?.claims?.sub as string | undefined;
-  const recipeId = event.pathParameters?.id;
+  const authUserId = event.requestContext.authorizer?.jwt?.claims?.sub as string | undefined;
+  const recipeId   = event.pathParameters?.id;
+  // Allow fetching another user's recipe (e.g. shared household view) by passing ?userId=
+  const userId     = event.queryStringParameters?.userId ?? authUserId;
 
-  if (!userId)   return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorised' }) };
-  if (!recipeId) return { statusCode: 400, body: JSON.stringify({ error: 'Missing recipe id' }) };
+  if (!authUserId) return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorised' }) };
+  if (!recipeId)   return { statusCode: 400, body: JSON.stringify({ error: 'Missing recipe id' }) };
 
   const res = await dynamo.send(new GetCommand({
     TableName: RECIPES_TABLE,

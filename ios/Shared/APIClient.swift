@@ -99,8 +99,10 @@ final class APIClient {
         return (try? JSONDecoder().decode(Response.self, from: data))?.recipes ?? []
     }
 
-    func getRecipe(id: String) async throws -> RecipeDetail {
-        let data = try await request("/recipes/\(id)")
+    func getRecipe(id: String, userId: String? = nil) async throws -> RecipeDetail {
+        var path = "/recipes/\(id)"
+        if let userId { path += "?userId=\(userId)" }
+        let data = try await request(path)
         guard let detail = try? JSONDecoder().decode(RecipeDetail.self, from: data) else {
             throw APIError.server(0, "Decoding failed")
         }
