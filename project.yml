@@ -1,0 +1,101 @@
+name: Recipator
+options:
+    bundleIdPrefix: com.nakomis
+    deploymentTarget:
+        iOS: '17.0'
+    createIntermediateGroups: true
+
+settings:
+    base:
+        SWIFT_VERSION: '5.10'
+        DEVELOPMENT_TEAM: 62YFUFBSFX
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: '1,2'
+        SUPPORTS_MACCATALYST: NO
+
+targets:
+    Recipator:
+        type: application
+        platform: iOS
+        deploymentTarget: '17.0'
+        sources:
+            - path: Recipator
+              excludes:
+                  - Resources/Info.plist
+            - path: Shared
+        resources:
+            - Recipator/Resources/Assets.xcassets
+        info:
+            path: Recipator/Resources/Info.plist
+            properties:
+                CFBundleDisplayName: Recipator
+                CFBundleShortVersionString: '0.1.0'
+                CFBundleVersion: '1'
+                UILaunchScreen: {}
+                UISupportedInterfaceOrientations:
+                    - UIInterfaceOrientationPortrait
+                    - UIInterfaceOrientationLandscapeLeft
+                    - UIInterfaceOrientationLandscapeRight
+        entitlements:
+            path: Recipator/Resources/Recipator.entitlements
+            properties:
+                com.apple.security.application-groups:
+                    - group.com.nakomis.recipator
+        settings:
+            base:
+                PRODUCT_BUNDLE_IDENTIFIER: com.nakomis.recipator
+                MARKETING_VERSION: '0.1.0'
+                CURRENT_PROJECT_VERSION: '1'
+        dependencies:
+            - target: RecipatorShare
+
+    RecipatorShare:
+        type: app-extension
+        platform: iOS
+        deploymentTarget: '17.0'
+        sources:
+            - path: RecipatorShare
+            - path: Shared
+        info:
+            path: RecipatorShare/Info.plist
+            properties:
+                CFBundleDisplayName: Recipator
+                CFBundleShortVersionString: '0.1.0'
+                CFBundleVersion: '1'
+                NSExtension:
+                    NSExtensionPointIdentifier: com.apple.share-services
+                    NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+                    NSExtensionAttributes:
+                        NSExtensionActivationRule: "SUBQUERY(extensionItems, $extensionItem, SUBQUERY($extensionItem.attachments, $attachment, ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO \"public.url\").@count >= 1).@count >= 1"
+        entitlements:
+            path: RecipatorShare/RecipatorShare.entitlements
+            properties:
+                com.apple.security.application-groups:
+                    - group.com.nakomis.recipator
+        settings:
+            base:
+                PRODUCT_BUNDLE_IDENTIFIER: com.nakomis.recipator.share
+                MARKETING_VERSION: '0.1.0'
+                CURRENT_PROJECT_VERSION: '1'
+
+    RecipatorTests:
+        type: bundle.unit-test
+        platform: iOS
+        sources:
+            - RecipatorTests
+        dependencies:
+            - target: Recipator
+        settings:
+            base:
+                PRODUCT_BUNDLE_IDENTIFIER: com.nakomis.recipator.tests
+                GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+    Recipator:
+        build:
+            targets:
+                Recipator: all
+        run:
+            config: Debug
+        archive:
+            config: Release
