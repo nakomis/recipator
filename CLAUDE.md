@@ -4,12 +4,25 @@ iOS Share Extension and Chrome plugin for extracting and saving web recipes with
 
 ## Stack
 
-- **iOS** — Swift 5.10, SwiftUI, iOS 17+, XcodeGen (`project.yml`)
+- **iOS** — Swift 5.10, SwiftUI, iOS 17+, XcodeGen (`ios/project.yml`)
 - **Share Extension** — `com.apple.share-services`, receives URLs from Chrome/Safari share sheet
-- **Extraction** — schema.org/Recipe JSON-LD first; Claude Haiku (`claude-haiku-4-5-20251001`) fallback
-- **Storage (current)** — App Group `group.com.nakomis.recipator`, recipes as `.md` files
-- **Storage (planned)** — AWS backend (API Gateway + Lambda + DynamoDB)
+- **API** — API Gateway HTTP API + Lambda (Node 22), Cognito JWT authoriser (native, no authorizer Lambda)
+- **Extraction** — schema.org/Recipe JSON-LD first; Claude Haiku (`claude-haiku-4-5-20251001`) fallback server-side
+- **Storage** — DynamoDB `recipator-recipes-{env}` (userId PK, recipeId SK, TTL soft-delete)
+- **Auth** — Shared Cognito user pool (`/nakomis-infra/{env}/cognito/user-pool-id`); iOS PKCE flow
 - **Chrome extension** — planned
+
+## Endpoints (sandbox)
+
+`https://api.recipator.sandbox.nakomis.com`
+
+| Method | Path | Description |
+|---|---|---|
+| POST | /extract | Fetch URL, extract recipe, save to DynamoDB |
+| GET | /recipes | List user's recipes |
+| GET | /recipes/{id} | Get one recipe |
+| DELETE | /recipes/{id} | Soft delete (TTL 6 months) |
+| POST | /failures | Report a capture failure |
 
 ## Apple Developer
 

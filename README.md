@@ -1,7 +1,7 @@
 # Recipator — Extract and save recipes from the web with AI
 
 <p align="center">
-  <img src="assets/icon-1024.png" alt="Recipator" width="200" />
+  <img src="ios/assets/icon-1024.png" alt="Recipator" width="200" />
 </p>
 
 ## Support
@@ -38,18 +38,23 @@ Recipator lets you share any recipe URL from Chrome on iPhone, iPad, or desktop 
 
 | Directory | Contents |
 |---|---|
-| `Recipator/` | iOS SwiftUI app — recipe list and viewer |
-| `RecipatorShare/` | iOS Share Extension — receives URLs from the share sheet |
-| `Shared/` | Swift code shared between app and extension |
-| `RecipatorTests/` | XCTest unit tests |
-| `assets/` | App icon and design assets |
+| `ios/` | iOS app + Share Extension (Swift/SwiftUI) |
+| `ios/Recipator/` | SwiftUI app — recipe list and viewer |
+| `ios/RecipatorShare/` | Share Extension — receives URLs from Chrome/Safari |
+| `ios/Shared/` | Swift code shared between app and extension |
+| `ios/RecipatorTests/` | XCTest unit tests |
+| `ios/assets/` | App icon and design assets |
+| `ios/project.yml` | XcodeGen spec — source of truth for the Xcode project |
+| `infra/` | AWS CDK (TypeScript) — API Gateway, Lambda, DynamoDB |
 | `docs/architecture/` | draw.io architecture diagram and generated SVG |
 
 ## Stack
 
 - **iOS app + Share Extension** — Swift 5.10, SwiftUI, iOS 17+
+- **API** — API Gateway HTTP API, Lambda (Node 22), `api.recipator.[sandbox.]nakomis.com`
 - **Recipe extraction** — schema.org/Recipe JSON-LD first; Claude Haiku fallback
-- **Storage** — App Group shared container (local `.md` files), AWS backend planned
+- **Storage** — DynamoDB (AWS backend); local App Group files (spike only)
+- **Auth** — Cognito JWT (shared nakomis user pool); API GW validates natively
 - **Desktop** — Chrome extension (planned)
 
 ## Getting Started
@@ -64,9 +69,9 @@ Recipator lets you share any recipe URL from Chrome on iPhone, iPad, or desktop 
 
 ```bash
 git clone git@github.com:nakomis/recipator.git
-cd recipator
+cd recipator/ios
 cp Shared/Secrets.swift.example Shared/Secrets.swift
-# Edit Shared/Secrets.swift and fill in your Anthropic API key
+# Edit Shared/Secrets.swift and fill in your Anthropic API key (spike only — superseded by backend)
 xcodegen generate
 open Recipator.xcodeproj
 ```
