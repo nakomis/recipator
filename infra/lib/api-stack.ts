@@ -56,10 +56,69 @@ export class ApiStack extends cdk.Stack {
 
     // Managed Login v2 requires an explicit branding resource per client.
     // Without it the hosted UI returns "Login pages unavailable".
+    // Colour scheme matches nakostat (One Dark palette).
     new cognito.CfnManagedLoginBranding(this, 'ManagedLoginBranding', {
       userPoolId: userPool.userPoolId,
       clientId: client.userPoolClientId,
-      useCognitoProvidedValues: true,
+      useCognitoProvidedValues: false,
+      settings: {
+        components: {
+          pageBackground: {
+            image: { enabled: false },
+            darkMode: { color: '282c34ff' },
+          },
+          pageHeader: {
+            backgroundImage: { enabled: false },
+            logo: { location: 'START', enabled: false },
+            darkMode: { background: { color: '21252bff' }, borderColor: '3e4451ff' },
+          },
+          pageFooter: {
+            backgroundImage: { enabled: false },
+            logo: { location: 'START', enabled: false },
+            darkMode: { background: { color: '21252bff' }, borderColor: '3e4451ff' },
+          },
+          form: {
+            borderRadius: 8,
+            backgroundImage: { enabled: false },
+            logo: { location: 'CENTER', position: 'TOP', enabled: false, formInclusion: 'IN' },
+            darkMode: { backgroundColor: '2c313aff', borderColor: '3e4451ff' },
+          },
+          pageText: {
+            darkMode: { bodyColor: 'abb2bfff', headingColor: 'ffffffff', descriptionColor: '5c6370ff' },
+          },
+          primaryButton: {
+            darkMode: {
+              defaults: { backgroundColor: '2563ebff', textColor: 'ffffffff' },
+              hover:    { backgroundColor: '1d4ed8ff', textColor: 'ffffffff' },
+              active:   { backgroundColor: '1e40afff', textColor: 'ffffffff' },
+              disabled: { backgroundColor: '2c313aff', borderColor: '3e4451ff' },
+            },
+          },
+          secondaryButton: {
+            darkMode: {
+              defaults: { backgroundColor: '2c313aff', borderColor: '3e4451ff', textColor: 'abb2bfff' },
+              hover:    { backgroundColor: '353b45ff', borderColor: '528bffff', textColor: 'ffffffff' },
+              active:   { backgroundColor: '21252bff', borderColor: '3e4451ff', textColor: 'ffffffff' },
+            },
+          },
+          alert: {
+            borderRadius: 4,
+            darkMode: { error: { backgroundColor: '3a1515ff', borderColor: 'e06c75ff' } },
+          },
+          idpButton: {
+            standard: {
+              darkMode: {
+                defaults: { backgroundColor: '2c313aff', borderColor: '3e4451ff', textColor: 'abb2bfff' },
+                hover:    { backgroundColor: '353b45ff', borderColor: '528bffff', textColor: 'ffffffff' },
+                active:   { backgroundColor: '21252bff', borderColor: '3e4451ff', textColor: 'ffffffff' },
+              },
+            },
+            custom: {},
+          },
+          phoneNumberSelector: { displayType: 'TEXT' },
+          favicon: { enabledTypes: ['ICO', 'SVG'] },
+        },
+      },
     });
 
     new ssm.StringParameter(this, 'CognitoClientIdParam', {
