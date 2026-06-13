@@ -90,7 +90,7 @@ final class AuthService: NSObject, ObservableObject {
                 cont.resume(returning: url!)
             }
             session.presentationContextProvider = self
-            session.prefersEphemeralWebBrowserSession = false
+            session.prefersEphemeralWebBrowserSession = true
             session.start()
         }
     }
