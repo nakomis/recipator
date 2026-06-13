@@ -11,8 +11,7 @@ struct ShareView: View {
         case checkingAuth
         case notSignedIn
         case extracting
-        case preview(ExtractedRecipe)
-        case saved
+        case preview(RecipeDetail)
         case failed(String)
     }
 
@@ -55,36 +54,21 @@ struct ShareView: View {
             VStack(spacing: 16) {
                 ProgressView()
                     .scaleEffect(1.5)
-                Text("Extracting recipe…")
+                Text("Saving recipe…")
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
         case .preview(let recipe):
-            RecipePreviewView(recipe: recipe) {
-                save(recipe)
-            }
-
-        case .saved:
-            VStack(spacing: 16) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 56))
-                    .foregroundStyle(.green)
-                Text("Recipe saved!")
-                    .font(.title2.bold())
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .task {
-                try? await Task.sleep(for: .seconds(1))
-                onDismiss()
-            }
+            // Server already saved it — this is just a confirmation preview.
+            RecipePreviewView(recipe: recipe, onDismiss: onDismiss)
 
         case .failed(let message):
             VStack(spacing: 16) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 48))
                     .foregroundStyle(.orange)
-                Text("Extraction failed")
+                Text("Couldn't save recipe")
                     .font(.title3.bold())
                 Text(message)
                     .foregroundStyle(.secondary)
@@ -96,25 +80,23 @@ struct ShareView: View {
     }
 
     private func run() async {
-        // Check for a valid Cognito token in the shared Keychain.
-        // The extension can't run the OAuth flow itself, so we just gate here.
-        guard let tokens = try? TokenStore.load(), tokens.expiresAt > Date() else {
+        guard let stored = try? TokenStore.load(), stored.expiresAt > Date() else {
             phase = .notSignedIn
             return
         }
 
         guard let url = await resolveURL() else {
-            phase = .failed(RecipeError.noURLFound.localizedDescription)
+            phase = .failed(APIError.noURLFound.errorDescription)
             return
         }
 
-        // Spike: still does local extraction. RECP-11 will replace this with
-        // a POST /extract call using tokens.accessToken as the Bearer header.
-        let extractor = RecipeExtractor(apiKey: Secrets.anthropicAPIKey)
+        phase = .extracting
         do {
-            let recipe = try await extractor.extract(from: url)
+            let recipe = try await APIClient.shared.extract(url: url)
             phase = .preview(recipe)
         } catch {
+            // Report the failure to the backend so it can be triaged (RECP-26)
+            try? await APIClient.shared.reportFailure(url: url.absoluteString, errorType: "parse_error")
             phase = .failed(error.localizedDescription)
         }
     }
@@ -127,7 +109,6 @@ struct ShareView: View {
                    let url = try? await provider.loadItem(forTypeIdentifier: UTType.url.identifier) as? URL {
                     return url
                 }
-                // Chrome on iOS sometimes sends the URL as plain text
                 if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier),
                    let str = try? await provider.loadItem(forTypeIdentifier: UTType.plainText.identifier) as? String,
                    let url = URL(string: str), url.scheme?.hasPrefix("http") == true {
@@ -137,54 +118,37 @@ struct ShareView: View {
         }
         return nil
     }
-
-    private func save(_ recipe: ExtractedRecipe) {
-        let saved = Recipe(title: recipe.title, url: recipe.sourceURL, savedAt: Date(), markdown: recipe.markdown)
-        do {
-            try RecipeStore.shared.save(saved)
-            phase = .saved
-        } catch {
-            phase = .failed(error.localizedDescription)
-        }
-    }
 }
 
 struct RecipePreviewView: View {
-    let recipe: ExtractedRecipe
-    let onSave: () -> Void
+    let recipe: RecipeDetail
+    let onDismiss: () -> Void
 
     var body: some View {
         List {
             Section {
-                Text(recipe.title)
-                    .font(.headline)
-                Text(recipe.sourceURL)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(recipe.title).font(.headline)
+                Text(recipe.url).font(.caption).foregroundStyle(.secondary)
             }
-
             Section("Ingredients") {
                 ForEach(recipe.ingredients, id: \.self) { Text($0) }
             }
-
             Section("Method") {
                 ForEach(Array(recipe.method.enumerated()), id: \.offset) { i, step in
                     Label {
                         Text(step)
                     } icon: {
-                        Text("\(i + 1).")
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
+                        Text("\(i + 1).").monospacedDigit().foregroundStyle(.secondary)
                     }
                 }
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Button(action: onSave) {
-                Label("Save Recipe", systemImage: "square.and.arrow.down")
+            Button(action: onDismiss) {
+                Label("Done — Recipe Saved", systemImage: "checkmark.circle.fill")
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.accentColor)
+                    .background(Color.green)
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
