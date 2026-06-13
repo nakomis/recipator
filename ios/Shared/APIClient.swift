@@ -4,10 +4,19 @@ import Foundation
 
 struct RecipeListItem: Codable, Identifiable {
     let recipeId: String
+    let userId: String?
+    let userEmail: String?
     let title: String
     let url: String
     let savedAt: String
     var id: String { recipeId }
+
+    /// First name extracted from email, e.g. "martin@nakomis.com" → "Martin"
+    var ownerFirstName: String? {
+        guard let email = userEmail, !email.isEmpty else { return nil }
+        let local = email.components(separatedBy: "@").first ?? email
+        return local.prefix(1).uppercased() + local.dropFirst()
+    }
 }
 
 struct RecipeDetail: Codable, Identifiable {
@@ -80,9 +89,12 @@ final class APIClient {
         return detail
     }
 
-    func listRecipes(includeDeleted: Bool = false) async throws -> [RecipeListItem] {
-        let path = includeDeleted ? "/recipes?includeDeleted=true" : "/recipes"
-        let data = try await request(path)
+    func listRecipes(all: Bool = false, includeDeleted: Bool = false) async throws -> [RecipeListItem] {
+        var params: [String] = []
+        if all { params.append("all=true") }
+        if includeDeleted { params.append("includeDeleted=true") }
+        let query = params.isEmpty ? "" : "?" + params.joined(separator: "&")
+        let data = try await request("/recipes\(query)")
         struct Response: Decodable { let recipes: [RecipeListItem] }
         return (try? JSONDecoder().decode(Response.self, from: data))?.recipes ?? []
     }

@@ -27,7 +27,9 @@ function err(status: number, message: string): APIGatewayProxyResultV2 {
 }
 
 export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<APIGatewayProxyResultV2> {
-  const userId = event.requestContext.authorizer?.jwt?.claims?.sub as string | undefined;
+  const claims = event.requestContext.authorizer?.jwt?.claims ?? {};
+  const userId    = claims['sub'] as string | undefined;
+  const userEmail = (claims['email'] ?? claims['username'] ?? '') as string;
   if (!userId) return err(401, 'Unauthorised');
 
   const body = JSON.parse(event.body ?? '{}') as { url?: string };
@@ -60,6 +62,7 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
 
   const item = {
     userId,
+    userEmail,
     recipeId,
     title:       extracted.title,
     url:         url.toString(),

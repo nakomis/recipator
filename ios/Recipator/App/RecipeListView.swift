@@ -1,11 +1,17 @@
 import SwiftUI
 
+enum RecipeScope: String, CaseIterable {
+    case everyone = "Everyone"
+    case mine     = "Mine"
+}
+
 struct RecipeListView: View {
     @EnvironmentObject private var auth: AuthService
     @State private var recipes: [RecipeListItem] = []
     @State private var selected: RecipeDetail?
     @State private var isLoading = false
     @State private var error: String?
+    @State private var scope: RecipeScope = .everyone
 
     var body: some View {
         NavigationStack {
@@ -25,7 +31,7 @@ struct RecipeListView: View {
                             Button {
                                 Task { await load(recipe.recipeId) }
                             } label: {
-                                RecipeRow(recipe: recipe)
+                                RecipeRow(recipe: recipe, showOwner: scope == .everyone)
                             }
                             .swipeActions(edge: .trailing) {
                                 Button("Delete", role: .destructive) {
@@ -39,6 +45,15 @@ struct RecipeListView: View {
             }
             .navigationTitle("Recipator")
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Picker("", selection: $scope) {
+                        ForEach(RecipeScope.allCases, id: \.self) {
+                            Text($0.rawValue).tag($0)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 160)
+                }
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         Task { await fetch() }
@@ -75,6 +90,7 @@ struct RecipeListView: View {
             }
         }
         .task { await fetch() }
+        .onChange(of: scope) { Task { await fetch() } }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             Task { await fetch() }
         }
@@ -84,7 +100,7 @@ struct RecipeListView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            recipes = try await APIClient.shared.listRecipes()
+            recipes = try await APIClient.shared.listRecipes(all: scope == .everyone)
         } catch {
             self.error = error.localizedDescription
         }
@@ -110,6 +126,7 @@ struct RecipeListView: View {
 
 struct RecipeRow: View {
     let recipe: RecipeListItem
+    var showOwner: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -129,14 +146,20 @@ struct RecipeRow: View {
                     .lineLimit(2)
 
                 HStack(spacing: 6) {
+                    if showOwner, let name = recipe.ownerFirstName {
+                        Text(name)
+                            .font(.caption.bold())
+                            .foregroundStyle(Color.accentColor)
+                        Text("·")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                     Text(domain(from: recipe.url))
                         .font(.caption)
                         .foregroundStyle(.secondary)
-
                     Text("·")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
-
                     Text(formattedDate(recipe.savedAt))
                         .font(.caption)
                         .foregroundStyle(.secondary)
