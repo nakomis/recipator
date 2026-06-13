@@ -104,11 +104,15 @@ function extractImageCandidates(html: string, baseUrl: string): string[] {
     const src = extractAttr(tag, 'src') || extractAttr(tag, 'data-src') || extractAttr(tag, 'data-lazy-src');
     if (!src) continue;
     if (src.startsWith('data:') || /\.svg(\?|$)/i.test(src)) continue;
+    if (/logo|icon|banner|badge|sprite|avatar|placeholder|tracking|pixel|ad[s_-]/i.test(src)) continue;
 
     const w = parseInt(extractAttr(tag, 'width') ?? '0', 10);
     const h = parseInt(extractAttr(tag, 'height') ?? '0', 10);
-    // Skip images that are explicitly declared small
     if (w > 0 && w < 200 && h > 0 && h < 200) continue;
+    if (w > 0 && h > 0 && w / h > 4) continue; // skip wide banners
+
+    const alt = extractAttr(tag, 'alt') ?? '';
+    if (/logo|icon|banner/i.test(alt)) continue;
 
     let abs: string;
     try { abs = new URL(src, base).toString(); } catch { continue; }
