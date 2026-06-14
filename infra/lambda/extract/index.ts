@@ -26,39 +26,50 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
   const userId    = claims['sub'] as string | undefined;
   const userEmail = (claims['email'] ?? claims['username'] ?? '') as string;
   if (!userId) { log.warn('extract:unauthorised'); return err(401, 'Unauthorised'); }
-
-  const body = JSON.parse(event.body ?? '{}') as { url?: string };
+  
+  const body = JSON.parse(event.body ?? '{}') as { url?: string; html?: string };
   if (!body.url) return err(400, 'url is required');
 
   let url: URL;
   try { url = new URL(body.url); } catch { return err(400, 'Invalid URL'); }
 
-  log.info('extract:start', { url: url.toString(), userId });
+  // The client may fetch the page itself (on-device WKWebView) and send the HTML —
+  // this is how we handle sites that block server-side/datacenter fetches behind
+  // Cloudflare bot management (e.g. allrecipes, Serious Eats). When html is supplied
+  // we parse it directly and skip the server-side fetch.
+  const clientHtml = typeof body.html === 'string' && body.html.length > 0 ? body.html : undefined;
+  log.info('extract:start', { url: url.toString(), userId, source: clientHtml ? 'client' : 'server' });
 
-  // Fetch page
-  const pageRes = await fetch(url.toString(), {
-    headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15' },
-  });
-  if (!pageRes.ok) {
-    const status = pageRes.status;
-    log.warn('extract:fetch_failed', { url: url.toString(), status });
-    // The page itself refused us — distinguish the common cases so the app can show
-    // something useful instead of a generic 502 "bad gateway".
-    if (status === 401 || status === 402 || status === 403 || status === 451) {
-      // Many recipe sites block server-side/datacenter fetches (bot protection) or
-      // sit behind a login/paywall.
-      return err(422, 'This site blocked the request — it may be behind a login or paywall, or it blocks automated fetches. Try a different source for this recipe.');
+  let html: string;
+  if (clientHtml) {
+    html = clientHtml;
+    log.info('extract:client_html', { url: url.toString(), bytes: html.length });
+  } else {
+    // Fetch page server-side.
+    const pageRes = await fetch(url.toString(), {
+      headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15' },
+    });
+    if (!pageRes.ok) {
+      const status = pageRes.status;
+      log.warn('extract:fetch_failed', { url: url.toString(), status });
+      // The page itself refused us — distinguish the common cases so the app can show
+      // something useful instead of a generic 502 "bad gateway".
+      if (status === 401 || status === 402 || status === 403 || status === 451) {
+        // Many recipe sites block server-side/datacenter fetches (bot protection) or
+        // sit behind a login/paywall. The app retries these with an on-device fetch.
+        return err(422, 'This site blocked the request — it may be behind a login or paywall, or it blocks automated fetches. Try a different source for this recipe.');
+      }
+      if (status === 404 || status === 410) {
+        return err(422, 'That page could not be found — it may have moved or been removed.');
+      }
+      if (status === 429) {
+        return err(422, 'This site is rate-limiting requests right now. Please try again shortly.');
+      }
+      // Genuine upstream server-side failure.
+      return err(502, `Couldn't reach the page (it returned ${status}). Please try again later.`);
     }
-    if (status === 404 || status === 410) {
-      return err(422, 'That page could not be found — it may have moved or been removed.');
-    }
-    if (status === 429) {
-      return err(422, 'This site is rate-limiting requests right now. Please try again shortly.');
-    }
-    // Genuine upstream server-side failure.
-    return err(502, `Couldn't reach the page (it returned ${status}). Please try again later.`);
+    html = await pageRes.text();
   }
-  const html = await pageRes.text();
 
   // Try JSON-LD first
   let extracted = extractFromJSONLD(html, url.toString());
