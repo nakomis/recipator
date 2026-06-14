@@ -42,8 +42,10 @@ else
   echo "  not in ECR — building (arm64) and pushing ..."
   aws ecr get-login-password --region "$REGION" \
     | docker login --username AWS --password-stdin "$REGISTRY"
-  # arm64 to match the Lambda function architecture (and the Apple Silicon build host).
-  docker build --platform linux/arm64 -t "$IMAGE" "$EMBED_DIR"
+  # amd64 to match the x86_64 Lambda function. Native on the x86 CI runners (no QEMU);
+  # emulated if ever run on an Apple Silicon host. Must agree with the function's
+  # architecture or the Lambda fails at invoke with an exec-format error.
+  docker build --platform linux/amd64 -t "$IMAGE" "$EMBED_DIR"
   docker push "$IMAGE"
   echo "  pushed ${IMAGE}"
 fi

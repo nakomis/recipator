@@ -40,6 +40,33 @@ export class GithubCiStack extends cdk.Stack {
             }),
           ],
         }),
+        // The deploy job runs publish-embed-image.sh, which builds + pushes the embed
+        // container image to the shared nakomis-lambda-images repo directly as this role
+        // (not via the CDK bootstrap image-publishing role, since we no longer use
+        // fromImageAsset). GetAuthorizationToken can only be granted on "*".
+        EcrPublish: new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              actions: ['ecr:GetAuthorizationToken'],
+              resources: ['*'],
+            }),
+            new iam.PolicyStatement({
+              actions: [
+                'ecr:DescribeImages',
+                'ecr:BatchGetImage',
+                'ecr:GetDownloadUrlForLayer',
+                'ecr:BatchCheckLayerAvailability',
+                'ecr:InitiateLayerUpload',
+                'ecr:UploadLayerPart',
+                'ecr:CompleteLayerUpload',
+                'ecr:PutImage',
+              ],
+              resources: [
+                `arn:aws:ecr:${this.region}:${this.account}:repository/nakomis-lambda-images`,
+              ],
+            }),
+          ],
+        }),
       },
     });
 
