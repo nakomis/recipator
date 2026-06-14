@@ -9,6 +9,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import { Platform } from 'aws-cdk-lib/aws-ecr-assets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
@@ -182,7 +183,13 @@ export class ApiStack extends cdk.Stack {
     // on the item. Container image bakes in the ~640MB model.
     const embedFn = new lambda.DockerImageFunction(this, 'EmbedFn', {
       functionName: `recipator-embed-${deployEnv}`,
-      code: lambda.DockerImageCode.fromImageAsset(path.join(__dirname, '../lambda/embed')),
+      // arm64: matches the build host (Apple Silicon) so the image isn't cross-built,
+      // and is cheaper to run. The function architecture and the image platform must
+      // agree, or the Lambda fails at invoke with an exec-format error.
+      architecture: lambda.Architecture.ARM_64,
+      code: lambda.DockerImageCode.fromImageAsset(path.join(__dirname, '../lambda/embed'), {
+        platform: Platform.LINUX_ARM64,
+      }),
       memorySize: 4096,
       timeout: cdk.Duration.seconds(120),
       environment: { RECIPES_TABLE: recipesTable.tableName, DEPLOY_ENV: deployEnv },
