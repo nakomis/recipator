@@ -92,12 +92,25 @@ struct ShareView: View {
 
         phase = .extracting
         do {
-            let recipe = try await APIClient.shared.extract(url: url)
+            let recipe = try await extractRecipe(from: url)
             phase = .preview(recipe)
         } catch {
             // Report the failure to the backend so it can be triaged (RECP-26)
             try? await APIClient.shared.reportFailure(url: url.absoluteString, errorType: "parse_error")
             phase = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Try the fast server-side fetch first. If the server couldn't fetch the page
+    /// (422 = blocked/paywalled, 502 = unreachable) — e.g. a Cloudflare-protected site
+    /// like allrecipes — fall back to fetching the HTML on-device (real Safari engine,
+    /// residential IP) and sending that to the server to parse.
+    private func extractRecipe(from url: URL) async throws -> RecipeDetail {
+        do {
+            return try await APIClient.shared.extract(url: url)
+        } catch APIError.server(let status, _) where status == 422 || status == 502 {
+            let html = try await PageFetcher().html(from: url)
+            return try await APIClient.shared.extract(url: url, html: html)
         }
     }
 
