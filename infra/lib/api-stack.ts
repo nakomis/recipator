@@ -68,41 +68,35 @@ export class ApiStack extends cdk.Stack {
       useCognitoProvidedValues: false,
       settings: {
         components: {
-          // Light and dark mode colours are set to the same One Dark palette so the
-          // login page always appears dark regardless of device preference.
+          // Colours are defined under `darkMode` only — the Managed Login schema has
+          // no light-mode colour properties (setting them fails validation with
+          // UnknownProperty). To make the page always appear dark regardless of the
+          // device's light/dark setting, `categories.global.colorSchemeMode` is set
+          // to DARK below, so this palette is used in all conditions.
           pageBackground: {
             image: { enabled: false },
-            color: '282c34ff',
             darkMode: { color: '282c34ff' },
           },
           pageHeader: {
             backgroundImage: { enabled: false },
             logo: { location: 'START', enabled: false },
-            background: { color: '21252bff' }, borderColor: '3e4451ff',
             darkMode: { background: { color: '21252bff' }, borderColor: '3e4451ff' },
           },
           pageFooter: {
             backgroundImage: { enabled: false },
             logo: { location: 'START', enabled: false },
-            background: { color: '21252bff' }, borderColor: '3e4451ff',
             darkMode: { background: { color: '21252bff' }, borderColor: '3e4451ff' },
           },
           form: {
             borderRadius: 8,
             backgroundImage: { enabled: false },
             logo: { location: 'CENTER', position: 'TOP', enabled: false, formInclusion: 'IN' },
-            backgroundColor: '2c313aff', borderColor: '3e4451ff',
             darkMode: { backgroundColor: '2c313aff', borderColor: '3e4451ff' },
           },
           pageText: {
-            bodyColor: 'abb2bfff', headingColor: 'ffffffff', descriptionColor: '5c6370ff',
             darkMode: { bodyColor: 'abb2bfff', headingColor: 'ffffffff', descriptionColor: '5c6370ff' },
           },
           primaryButton: {
-            defaults: { backgroundColor: '2563ebff', textColor: 'ffffffff' },
-            hover:    { backgroundColor: '1d4ed8ff', textColor: 'ffffffff' },
-            active:   { backgroundColor: '1e40afff', textColor: 'ffffffff' },
-            disabled: { backgroundColor: '2c313aff', borderColor: '3e4451ff' },
             darkMode: {
               defaults: { backgroundColor: '2563ebff', textColor: 'ffffffff' },
               hover:    { backgroundColor: '1d4ed8ff', textColor: 'ffffffff' },
@@ -111,9 +105,6 @@ export class ApiStack extends cdk.Stack {
             },
           },
           secondaryButton: {
-            defaults: { backgroundColor: '2c313aff', borderColor: '3e4451ff', textColor: 'abb2bfff' },
-            hover:    { backgroundColor: '353b45ff', borderColor: '528bffff', textColor: 'ffffffff' },
-            active:   { backgroundColor: '21252bff', borderColor: '3e4451ff', textColor: 'ffffffff' },
             darkMode: {
               defaults: { backgroundColor: '2c313aff', borderColor: '3e4451ff', textColor: 'abb2bfff' },
               hover:    { backgroundColor: '353b45ff', borderColor: '528bffff', textColor: 'ffffffff' },
@@ -122,14 +113,10 @@ export class ApiStack extends cdk.Stack {
           },
           alert: {
             borderRadius: 4,
-            error: { backgroundColor: '3a1515ff', borderColor: 'e06c75ff' },
             darkMode: { error: { backgroundColor: '3a1515ff', borderColor: 'e06c75ff' } },
           },
           idpButton: {
             standard: {
-              defaults: { backgroundColor: '2c313aff', borderColor: '3e4451ff', textColor: 'abb2bfff' },
-              hover:    { backgroundColor: '353b45ff', borderColor: '528bffff', textColor: 'ffffffff' },
-              active:   { backgroundColor: '21252bff', borderColor: '3e4451ff', textColor: 'ffffffff' },
               darkMode: {
                 defaults: { backgroundColor: '2c313aff', borderColor: '3e4451ff', textColor: 'abb2bfff' },
                 hover:    { backgroundColor: '353b45ff', borderColor: '528bffff', textColor: 'ffffffff' },
@@ -140,6 +127,15 @@ export class ApiStack extends cdk.Stack {
           },
           phoneNumberSelector: { displayType: 'TEXT' },
           favicon: { enabledTypes: ['ICO', 'SVG'] },
+        },
+        // Force the dark colour scheme so the login page is dark even when the
+        // device is in light mode (mirrors nakostat). Without this the page falls
+        // back to Cognito's default light theme and renders white.
+        categories: {
+          global: {
+            colorSchemeMode: 'DARK',
+            spacingDensity: 'REGULAR',
+          },
         },
       },
     });
