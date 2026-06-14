@@ -4,6 +4,7 @@ import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { LambdaClient, InvokeCommand, InvocationType } from '@aws-sdk/client-lambda';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { randomUUID } from 'crypto';
+import { log } from '../shared/logger';
 
 const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const lambdaClient = new LambdaClient({});
@@ -24,7 +25,7 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
   const claims = event.requestContext.authorizer?.jwt?.claims ?? {};
   const userId    = claims['sub'] as string | undefined;
   const userEmail = (claims['email'] ?? claims['username'] ?? '') as string;
-  if (!userId) return err(401, 'Unauthorised');
+  if (!userId) { log.warn('extract:unauthorised'); return err(401, 'Unauthorised'); }
 
   const body = JSON.parse(event.body ?? '{}') as { url?: string };
   if (!body.url) return err(400, 'url is required');
@@ -32,30 +33,30 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
   let url: URL;
   try { url = new URL(body.url); } catch { return err(400, 'Invalid URL'); }
 
-  console.log('extract:start', { url: url.toString(), userId });
+  log.info('extract:start', { url: url.toString(), userId });
 
   // Fetch page
   const pageRes = await fetch(url.toString(), {
     headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15' },
   });
   if (!pageRes.ok) {
-    console.log('extract:fetch_failed', { url: url.toString(), status: pageRes.status });
+    log.warn('extract:fetch_failed', { url: url.toString(), status: pageRes.status });
     return err(502, `Failed to fetch page: ${pageRes.status}`);
   }
   const html = await pageRes.text();
 
   // Try JSON-LD first
   let extracted = extractFromJSONLD(html, url.toString());
-  console.log('extract:jsonld', { url: url.toString(), found: !!extracted });
+  log.info('extract:jsonld', { url: url.toString(), found: !!extracted });
 
   // Fall back to Claude Haiku (via Bedrock)
   if (!extracted || extracted.ingredients.length === 0) {
     extracted = await extractWithClaude(html, url.toString());
-    console.log('extract:claude', { url: url.toString(), found: !!extracted });
+    log.info('extract:claude', { url: url.toString(), found: !!extracted });
   }
 
   if (!extracted) {
-    console.log('extract:failed', { url: url.toString() });
+    log.warn('extract:failed', { url: url.toString() });
     return err(422, 'Could not extract a recipe from this page');
   }
 
@@ -77,6 +78,10 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
   };
 
   await dynamo.send(new PutCommand({ TableName: RECIPES_TABLE, Item: item }));
+  log.info('extract:saved', {
+    recipeId, userId, source: extracted.ingredients.length ? 'ok' : 'empty',
+    ingredients: extracted.ingredients.length, steps: extracted.method.length,
+  });
 
   // Fire-and-forget: compute the semantic-search embedding out of band so the
   // share-sheet response stays snappy. The recipe is searchable once this lands.
@@ -90,7 +95,7 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
         })),
       }));
     } catch (e) {
-      console.log('extract:embed_invoke_failed', { recipeId, error: String(e) });
+      log.warn('extract:embed_invoke_failed', { recipeId, error: String(e) });
     }
   }
 
@@ -225,7 +230,7 @@ async function extractWithClaude(html: string, url: string): Promise<ExtractedRe
     const data = JSON.parse(new TextDecoder().decode(res.body)) as { content?: Array<{ text?: string }> };
     raw = data.content?.[0]?.text ?? '';
   } catch (e) {
-    console.log('extract:claude_bedrock_error', { url, error: String(e) });
+    log.error('extract:claude_bedrock_error', { url, error: String(e) });
     return null;
   }
   // Strip markdown code fences Claude sometimes wraps around JSON
@@ -236,7 +241,7 @@ async function extractWithClaude(html: string, url: string): Promise<ExtractedRe
     if (result.error || !result.title || !result.ingredients || !result.method) return null;
     return { title: result.title, ingredients: result.ingredients, method: result.method };
   } catch {
-    console.log('extract:claude_parse_error', { url, raw });
+    log.warn('extract:claude_parse_error', { url, raw });
     return null;
   }
 }

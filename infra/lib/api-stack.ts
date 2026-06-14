@@ -8,6 +8,7 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
@@ -152,6 +153,18 @@ export class ApiStack extends cdk.Stack {
       DEPLOY_ENV: deployEnv,
     };
 
+    // Explicit, predictably-named log group per function (so they're easy to find
+    // in the console) with 6-month retention. Without this, Lambda auto-creates a
+    // `/aws/lambda/<fn>` group that never expires. Retained on prod, torn down on
+    // sandbox alongside the function.
+    const logRemoval = deployEnv === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY;
+    const logGroupFor = (id: string, functionName: string) =>
+      new logs.LogGroup(this, id, {
+        logGroupName: `/aws/lambda/${functionName}`,
+        retention: logs.RetentionDays.SIX_MONTHS,
+        removalPolicy: logRemoval,
+      });
+
     // ── Lambda: GET /config ───────────────────────────────────────────────────
     const configFn = new nodejs.NodejsFunction(this, 'ConfigFn', {
       functionName: `recipator-config-${deployEnv}`,
@@ -160,6 +173,7 @@ export class ApiStack extends cdk.Stack {
       runtime,
       environment: { ...commonEnv, GROUP_MEMBERS_PARAM: groupMembersParam.parameterName },
       bundling,
+      logGroup: logGroupFor('ConfigFnLogs', `recipator-config-${deployEnv}`),
     });
     groupMembersParam.grantRead(configFn);
 
@@ -171,7 +185,8 @@ export class ApiStack extends cdk.Stack {
       code: lambda.DockerImageCode.fromImageAsset(path.join(__dirname, '../lambda/embed')),
       memorySize: 4096,
       timeout: cdk.Duration.seconds(120),
-      environment: { RECIPES_TABLE: recipesTable.tableName },
+      environment: { RECIPES_TABLE: recipesTable.tableName, DEPLOY_ENV: deployEnv },
+      logGroup: logGroupFor('EmbedFnLogs', `recipator-embed-${deployEnv}`),
     });
     recipesTable.grantWriteData(embedFn);
 
@@ -189,6 +204,7 @@ export class ApiStack extends cdk.Stack {
         EMBED_FUNCTION_NAME: embedFn.functionName,
       },
       bundling,
+      logGroup: logGroupFor('ExtractFnLogs', `recipator-extract-${deployEnv}`),
     });
     recipesTable.grantWriteData(extractFn);
     // Invoke Anthropic models on Bedrock, both directly and via inference profiles
@@ -210,6 +226,7 @@ export class ApiStack extends cdk.Stack {
       runtime,
       environment: commonEnv,
       bundling,
+      logGroup: logGroupFor('ListFnLogs', `recipator-list-${deployEnv}`),
     });
     recipesTable.grantReadData(listFn);
 
@@ -221,6 +238,7 @@ export class ApiStack extends cdk.Stack {
       runtime,
       environment: commonEnv,
       bundling,
+      logGroup: logGroupFor('GetFnLogs', `recipator-get-${deployEnv}`),
     });
     recipesTable.grantReadData(getFn);
 
@@ -232,6 +250,7 @@ export class ApiStack extends cdk.Stack {
       runtime,
       environment: commonEnv,
       bundling,
+      logGroup: logGroupFor('UpdateFnLogs', `recipator-update-${deployEnv}`),
     });
     recipesTable.grantWriteData(updateFn);
 
@@ -243,6 +262,7 @@ export class ApiStack extends cdk.Stack {
       runtime,
       environment: commonEnv,
       bundling,
+      logGroup: logGroupFor('DeleteFnLogs', `recipator-delete-${deployEnv}`),
     });
     recipesTable.grantWriteData(deleteFn);
 
@@ -254,6 +274,7 @@ export class ApiStack extends cdk.Stack {
       runtime,
       environment: commonEnv,
       bundling,
+      logGroup: logGroupFor('EmbeddingsFnLogs', `recipator-embeddings-${deployEnv}`),
     });
     recipesTable.grantReadData(embeddingsFn);
 
@@ -269,6 +290,7 @@ export class ApiStack extends cdk.Stack {
         MODEL_MANIFEST_KEY: 'mxbai/v1/manifest.json',
       },
       bundling,
+      logGroup: logGroupFor('ModelFnLogs', `recipator-model-${deployEnv}`),
     });
     modelsBucket.grantRead(modelFn);
 
@@ -280,6 +302,7 @@ export class ApiStack extends cdk.Stack {
       runtime,
       environment: commonEnv,
       bundling,
+      logGroup: logGroupFor('ReportFailureFnLogs', `recipator-report-failure-${deployEnv}`),
     });
     failuresTable.grantWriteData(reportFailureFn);
 

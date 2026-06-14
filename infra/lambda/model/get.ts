@@ -1,6 +1,7 @@
 import { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2 } from 'aws-lambda';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { log } from '../shared/logger';
 
 const s3 = new S3Client({});
 const MODELS_BUCKET = process.env.MODELS_BUCKET!;
@@ -18,7 +19,7 @@ interface Manifest {
 
 export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<APIGatewayProxyResultV2> {
   const userId = event.requestContext.authorizer?.jwt?.claims?.sub as string | undefined;
-  if (!userId) return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorised' }) };
+  if (!userId) { log.warn('model:unauthorised'); return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorised' }) }; }
 
   // Read the manifest describing the current model.
   let manifest: Manifest;
@@ -26,10 +27,11 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
     const res = await s3.send(new GetObjectCommand({ Bucket: MODELS_BUCKET, Key: MANIFEST_KEY }));
     manifest = JSON.parse(await res.Body!.transformToString()) as Manifest;
   } catch (e) {
-    console.log('model:manifest_missing', { key: MANIFEST_KEY, error: String(e) });
+    log.error('model:manifest_missing', { key: MANIFEST_KEY, error: String(e) });
     return { statusCode: 503, headers: { 'Content-Type': 'application/json' },
              body: JSON.stringify({ error: 'Model not available yet' }) };
   }
+  log.info('model:served', { userId, version: manifest.version });
 
   // Presigned GET for the model artefact (15 min).
   const url = await getSignedUrl(

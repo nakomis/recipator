@@ -17,6 +17,21 @@ from sentence_transformers import SentenceTransformer
 MODEL_ID = "mixedbread-ai/mxbai-embed-large-v1"
 MODEL_TAG = "mxbai-v1"
 RECIPES_TABLE = os.environ["RECIPES_TABLE"]
+FUNCTION = os.environ.get("AWS_LAMBDA_FUNCTION_NAME", "recipator-embed")
+ENV = os.environ.get("DEPLOY_ENV", "unknown")
+
+
+def _log(level: str, event: str, **fields) -> None:
+    """Structured JSON log line, matching the Node handlers' shape."""
+    print(json.dumps({
+        "level": level,
+        "time": datetime.now(timezone.utc).isoformat(),
+        "fn": FUNCTION,
+        "env": ENV,
+        "event": event,
+        **fields,
+    }))
+
 
 _model = SentenceTransformer(MODEL_ID)  # loaded once per container
 _dynamo = boto3.client("dynamodb")
@@ -52,22 +67,31 @@ def handler(event, _context):
     # fall back to reading them from the item.
     title = recipe.get("title")
     ingredients = recipe.get("ingredients")
-    if title is None or ingredients is None:
+    backfilled = title is None or ingredients is None
+    if backfilled:
         title, ingredients = _load_item(user_id, recipe_id)
 
-    text = _field_text(title, ingredients)
-    vec = _model.encode(text, normalize_embeddings=True)
-    blob = b"".join(struct.pack("<f", float(x)) for x in vec)
+    _log("INFO", "embed:start", recipeId=recipe_id, userId=user_id,
+         backfilled=backfilled, ingredients=len(ingredients or []))
 
-    _dynamo.update_item(
-        TableName=RECIPES_TABLE,
-        Key={"userId": {"S": user_id}, "recipeId": {"S": recipe_id}},
-        UpdateExpression="SET embedding = :e, embeddingModel = :m, embeddedAt = :t",
-        ExpressionAttributeValues={
-            ":e": {"B": blob},
-            ":m": {"S": MODEL_TAG},
-            ":t": {"S": datetime.now(timezone.utc).isoformat()},
-        },
-    )
-    print(f"embed:done recipeId={recipe_id} dim={len(vec)} model={MODEL_TAG}")
+    try:
+        text = _field_text(title, ingredients)
+        vec = _model.encode(text, normalize_embeddings=True)
+        blob = b"".join(struct.pack("<f", float(x)) for x in vec)
+
+        _dynamo.update_item(
+            TableName=RECIPES_TABLE,
+            Key={"userId": {"S": user_id}, "recipeId": {"S": recipe_id}},
+            UpdateExpression="SET embedding = :e, embeddingModel = :m, embeddedAt = :t",
+            ExpressionAttributeValues={
+                ":e": {"B": blob},
+                ":m": {"S": MODEL_TAG},
+                ":t": {"S": datetime.now(timezone.utc).isoformat()},
+            },
+        )
+    except Exception as e:
+        _log("ERROR", "embed:failed", recipeId=recipe_id, userId=user_id, error=str(e))
+        raise
+
+    _log("INFO", "embed:done", recipeId=recipe_id, userId=user_id, dim=len(vec), model=MODEL_TAG)
     return {"recipeId": recipe_id, "dim": len(vec), "model": MODEL_TAG}

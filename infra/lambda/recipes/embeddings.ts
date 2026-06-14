@@ -1,6 +1,7 @@
 import { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2 } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { log } from '../shared/logger';
 
 const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const RECIPES_TABLE = process.env.RECIPES_TABLE!;
@@ -12,7 +13,7 @@ const RECIPES_TABLE = process.env.RECIPES_TABLE!;
 // the household. Full sync (no incremental cursor) — fine at household scale.
 export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<APIGatewayProxyResultV2> {
   const userId = event.requestContext.authorizer?.jwt?.claims?.sub as string | undefined;
-  if (!userId) return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorised' }) };
+  if (!userId) { log.warn('embeddings:unauthorised'); return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorised' }) }; }
 
   const all = event.queryStringParameters?.all === 'true';
   const projection = 'recipeId, userId, title, ingredients, method, embedding, embeddingModel, embeddedAt';
@@ -51,6 +52,9 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
       embedding: emb ? Buffer.from(emb).toString('base64') : null,
     };
   });
+
+  const embedded = rows.filter(r => r.embedding !== null).length;
+  log.info('embeddings:sync', { userId, scope: all ? 'all' : 'own', count: rows.length, embedded });
 
   return {
     statusCode: 200,

@@ -1,6 +1,7 @@
 import { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2 } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { log } from '../shared/logger';
 
 const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const RECIPES_TABLE = process.env.RECIPES_TABLE!;
@@ -11,7 +12,7 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
   // Allow fetching another user's recipe (e.g. shared household view) by passing ?userId=
   const userId     = event.queryStringParameters?.userId ?? authUserId;
 
-  if (!authUserId) return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorised' }) };
+  if (!authUserId) { log.warn('recipes:get_unauthorised'); return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorised' }) }; }
   if (!recipeId)   return { statusCode: 400, body: JSON.stringify({ error: 'Missing recipe id' }) };
 
   const res = await dynamo.send(new GetCommand({
@@ -19,7 +20,12 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
     Key: { userId, recipeId },
   }));
 
-  if (!res.Item) return { statusCode: 404, body: JSON.stringify({ error: 'Not found' }) };
+  if (!res.Item) {
+    log.info('recipes:get_not_found', { recipeId, userId });
+    return { statusCode: 404, body: JSON.stringify({ error: 'Not found' }) };
+  }
+
+  log.info('recipes:get', { recipeId, userId, crossUser: userId !== authUserId });
 
   return {
     statusCode: 200,
