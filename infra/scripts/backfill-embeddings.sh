@@ -53,7 +53,7 @@ echo "Found ${COUNT} recipe(s) needing an embedding."
 N=0
 while IFS= read -r item; do
   RID="$(echo "$item" | jq -r '.recipeId.S')"
-  UID="$(echo "$item" | jq -r '.userId.S')"
+  USER_ID="$(echo "$item" | jq -r '.userId.S')"
   TITLE="$(echo "$item" | jq -r '.title.S // "(untitled)"')"
   N=$((N + 1))
   if $DRY_RUN; then
@@ -62,7 +62,7 @@ while IFS= read -r item; do
   fi
   printf '  [%d/%d] embedding %s — %s\n' "$N" "$COUNT" "$RID" "$TITLE"
   # Keys only — the embed-Lambda reads title/ingredients from the item when they're absent.
-  PAYLOAD="$(jq -nc --arg r "$RID" --arg u "$UID" '{recipeId:$r, userId:$u}')"
+  PAYLOAD="$(jq -nc --arg r "$RID" --arg u "$USER_ID" '{recipeId:$r, userId:$u}')"
   aws lambda invoke --region "$REGION" --function-name "$FUNCTION" \
     --invocation-type Event \
     --cli-binary-format raw-in-base64-out \
