@@ -27,6 +27,25 @@ struct GroupMember: Codable {
     let displayName: String
 }
 
+/// Response of GET /model — describes the current on-device embedding model.
+struct ModelInfo: Codable {
+    let version: String
+    let sha256: String
+    let dim: Int
+    let queryPrefix: String
+    let url: String        // presigned S3 GET URL
+    let expiresIn: Int
+}
+
+/// One recipe's embedding from GET /embeddings (vector is base64 float32 LE).
+struct SyncedEmbedding: Codable {
+    let recipeId: String
+    let userId: String
+    let model: String
+    let embeddedAt: String
+    let embedding: String
+}
+
 struct RecipeDetail: Codable, Identifiable {
     let recipeId: String
     let title: String
@@ -132,6 +151,21 @@ final class APIClient {
         let data = try await request("/config")
         struct Response: Decodable { let groupMembers: [GroupMember] }
         return (try? JSONDecoder().decode(Response.self, from: data))?.groupMembers ?? []
+    }
+
+    func getModelInfo() async throws -> ModelInfo {
+        let data = try await request("/model")
+        return try JSONDecoder().decode(ModelInfo.self, from: data)
+    }
+
+    func getEmbeddings(all: Bool = true, since: String? = nil) async throws -> [SyncedEmbedding] {
+        var params: [String] = []
+        if all { params.append("all=true") }
+        if let since { params.append("since=\(since.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? since)") }
+        let query = params.isEmpty ? "" : "?" + params.joined(separator: "&")
+        let data = try await request("/embeddings\(query)")
+        struct Response: Decodable { let embeddings: [SyncedEmbedding] }
+        return (try? JSONDecoder().decode(Response.self, from: data))?.embeddings ?? []
     }
 
     func reportFailure(url: String, errorType: String, htmlSnippet: String? = nil) async throws {
