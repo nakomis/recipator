@@ -34,6 +34,13 @@ iOS Share Extension and Chrome plugin for extracting and saving web recipes with
 - **Server**: recipe vectors computed by an async Python container embed-Lambda
   (`infra/lambda/embed/`, sentence-transformers), stored as a DynamoDB Binary attribute
   (`embedding`, 1024 float32 LE). Verified identical to the on-device CoreML output.
+- **Embed image (ECR)**: the embed Lambda is a container (torch + 1.3GB model ≫ 250MB ZIP
+  limit), arm64. The image is **not** built by `cdk deploy` — `infra/scripts/publish-embed-image.sh`
+  builds + pushes it to the shared `nakomis-lambda-images` ECR repo (defined in nakomis-infra)
+  under a content-hashed tag, and the stack references it with `DockerImageCode.fromEcr`. The
+  push is idempotent: same `Dockerfile`/`requirements.txt`/`handler.py` → same tag → skipped.
+  `pnpm run deploy-{env}` runs the publish step first, so a code change rebuilds and any redeploy
+  is a no-op push. The tag is derived identically in bash and in `infra/lib/embed-image-tag.ts`.
 - **Model delivery**: private S3 bucket `recipator-models-{env}`; app downloads via presigned
   `/model` URL on first launch, verifies sha256, compiles + warms up in the background
   (search disabled until ready). Publish a model with `infra/scripts/publish-model.sh`.

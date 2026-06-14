@@ -6,11 +6,13 @@
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "deploy-sandbox": "NPM_ENVIRONMENT=sandbox cdk deploy --profile nakom.is-sandbox --all --require-approval never",
-    "deploy-prod": "NPM_ENVIRONMENT=prod cdk deploy --profile nakom.is-admin --all --require-approval never",
+    "publish-embed-sandbox": "AWS_PROFILE=nakom.is-sandbox ./scripts/publish-embed-image.sh sandbox",
+    "publish-embed-prod": "AWS_PROFILE=nakom.is-admin ./scripts/publish-embed-image.sh prod",
+    "deploy-sandbox": "pnpm run publish-embed-sandbox && NPM_ENVIRONMENT=sandbox cdk deploy --profile nakom.is-sandbox --all --require-approval never",
+    "deploy-prod": "pnpm run publish-embed-prod && NPM_ENVIRONMENT=prod cdk deploy --profile nakom.is-admin --all --require-approval never",
     "ci-synth-sandbox": "NPM_ENVIRONMENT=sandbox cdk synth --all",
-    "ci-deploy-sandbox": "NPM_ENVIRONMENT=sandbox cdk deploy --all --require-approval never --output cdk-deploy.out",
-    "ci-deploy-prod": "NPM_ENVIRONMENT=prod cdk deploy --all --require-approval never --output cdk-deploy.out"
+    "ci-deploy-sandbox": "./scripts/publish-embed-image.sh sandbox && NPM_ENVIRONMENT=sandbox cdk deploy --all --require-approval never --output cdk-deploy.out",
+    "ci-deploy-prod": "./scripts/publish-embed-image.sh prod && NPM_ENVIRONMENT=prod cdk deploy --all --require-approval never --output cdk-deploy.out"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1068.0",
