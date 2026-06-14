@@ -43,7 +43,7 @@ targets:
             path: Recipator/Resources/Info.plist
             properties:
                 CFBundleDisplayName: Recipator
-                CFBundleShortVersionString: '1.0.0'
+                CFBundleShortVersionString: '1.1'
                 CFBundleVersion: '1'
                 UILaunchScreen: {}
                 UISupportedInterfaceOrientations:
@@ -69,7 +69,7 @@ targets:
         settings:
             base:
                 PRODUCT_BUNDLE_IDENTIFIER: com.nakomis.recipator
-                MARKETING_VERSION: '1.0.0'
+                MARKETING_VERSION: '1.1'
                 CURRENT_PROJECT_VERSION: '1'
                 RecipatorApiBaseURL: https://api.recipator.sandbox.nakomis.com
                 RecipatorCognitoClientID: 2nqfrt40559k92m3tbtklsbqrd
@@ -99,7 +99,7 @@ targets:
             path: RecipatorShare/Info.plist
             properties:
                 CFBundleDisplayName: Recipator
-                CFBundleShortVersionString: '1.0.0'
+                CFBundleShortVersionString: '1.1'
                 CFBundleVersion: '1'
                 # Values injected at build time via xcconfig — see settings below
                 RecipatorApiBaseURL: $(RecipatorApiBaseURL)
@@ -120,7 +120,7 @@ targets:
         settings:
             base:
                 PRODUCT_BUNDLE_IDENTIFIER: com.nakomis.recipator.share
-                MARKETING_VERSION: '1.0.0'
+                MARKETING_VERSION: '1.1'
                 CURRENT_PROJECT_VERSION: '1'
                 RecipatorApiBaseURL: https://api.recipator.sandbox.nakomis.com
                 RecipatorCognitoClientID: 2nqfrt40559k92m3tbtklsbqrd
