@@ -24,7 +24,7 @@ iOS Share Extension and Chrome plugin for extracting and saving web recipes with
 | DELETE | /recipes/{id} | Soft delete (TTL 6 months) |
 | POST | /failures | Report a capture failure |
 | GET | /model | Presigned download URL + manifest for the on-device embedding model |
-| GET | /embeddings | Sync recipe vectors to the device (`?all`, `?since=<iso>`) |
+| GET | /embeddings | Search-index sync: recipe text (title/ingredients/method) + vector when embedded (`?all`) |
 
 ## Semantic search (RECP-19)
 
@@ -37,10 +37,13 @@ iOS Share Extension and Chrome plugin for extracting and saving web recipes with
 - **Model delivery**: private S3 bucket `recipator-models-{env}`; app downloads via presigned
   `/model` URL on first launch, verifies sha256, compiles + warms up in the background
   (search disabled until ready). Publish a model with `infra/scripts/publish-model.sh`.
-- **On-device**: GRDB store of vectors synced from `/embeddings`; query embedded on-device
-  (`BertTokenizer` + `CoreMLEmbedder`, both in `ios/Recipator/Search/`), cosine ranking.
+- **On-device**: GRDB store synced from `/embeddings` in the background. Two indexes:
+  semantic (mxbai vectors, cosine) and **FTS5** keyword (title + ingredients + method).
+  Query embedded on-device (`BertTokenizer` + `CoreMLEmbedder`, in `ios/Recipator/Search/`).
+- **Hybrid ranking**: keyword (FTS) hits first, then semantically-similar recipes. Keyword
+  search works as soon as text syncs (no model needed); semantic joins once the model lands.
+  Method text is indexed too, so "I remember a step about X" searches work.
 - **Model is swappable only before first deploy** — changing it later means re-embedding everything.
-- Fast-follow option: SQLite **FTS5** over ingredient text (GRDB already present) for exact-ingredient lookups.
 
 ## Apple Developer
 

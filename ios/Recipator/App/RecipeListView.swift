@@ -142,14 +142,15 @@ struct RecipeListView: View {
             async let config: () = loadConfig()
             async let recipes: () = fetch()
             _ = await (config, recipes)
-            // Prepare the embedding model + sync vectors in the background.
-            await search.prepare()
-            await search.sync(knownRecipeIds: Set(allRecipes.map(\.recipeId)))
+            // Sync the search index immediately (enables keyword search now); prepare the
+            // embedding model in parallel (enables semantic search once it lands).
+            Task { await search.sync(knownRecipeIds: Set(allRecipes.map(\.recipeId))) }
+            Task { await search.prepare() }
         }
-        // Debounced semantic search: recompute ranking when the query settles.
+        // Debounced search: recompute ranking when the query settles.
         .task(id: searchText) {
             guard isSearching else { rankedIds = nil; return }
-            guard search.isReady else { rankedIds = nil; return }
+            guard search.hasSearchCapability else { rankedIds = nil; return }
             rankedIds = nil
             try? await Task.sleep(for: .milliseconds(250))
             if Task.isCancelled { return }
@@ -166,11 +167,11 @@ struct RecipeListView: View {
 
     @ViewBuilder
     private var searchContent: some View {
-        if !search.isReady {
+        if !search.hasSearchCapability {
             ContentUnavailableView {
                 Label(searchPrepLabel, systemImage: "sparkles")
             } description: {
-                Text("Semantic search is getting ready. This happens once.")
+                Text("Search is getting ready. This happens once.")
             }
         } else if rankedIds == nil {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -37,13 +37,17 @@ struct ModelInfo: Codable {
     let expiresIn: Int
 }
 
-/// One recipe's embedding from GET /embeddings (vector is base64 float32 LE).
-struct SyncedEmbedding: Codable {
+/// One recipe's search-index row from GET /embeddings: text for FTS plus the
+/// embedding vector (base64 float32 LE) when one has been computed.
+struct SearchIndexRow: Codable {
     let recipeId: String
     let userId: String
-    let model: String
-    let embeddedAt: String
-    let embedding: String
+    let title: String
+    let ingredients: [String]
+    let method: [String]
+    let model: String?
+    let embeddedAt: String?
+    let embedding: String?   // nil until the recipe has been embedded
 }
 
 struct RecipeDetail: Codable, Identifiable {
@@ -158,14 +162,11 @@ final class APIClient {
         return try JSONDecoder().decode(ModelInfo.self, from: data)
     }
 
-    func getEmbeddings(all: Bool = true, since: String? = nil) async throws -> [SyncedEmbedding] {
-        var params: [String] = []
-        if all { params.append("all=true") }
-        if let since { params.append("since=\(since.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? since)") }
-        let query = params.isEmpty ? "" : "?" + params.joined(separator: "&")
+    func getSearchIndex(all: Bool = true) async throws -> [SearchIndexRow] {
+        let query = all ? "?all=true" : ""
         let data = try await request("/embeddings\(query)")
-        struct Response: Decodable { let embeddings: [SyncedEmbedding] }
-        return (try? JSONDecoder().decode(Response.self, from: data))?.embeddings ?? []
+        struct Response: Decodable { let items: [SearchIndexRow] }
+        return (try? JSONDecoder().decode(Response.self, from: data))?.items ?? []
     }
 
     func reportFailure(url: String, errorType: String, htmlSnippet: String? = nil) async throws {

@@ -1,71 +1,84 @@
-// RecipeSearchModel.swift — orchestrates the on-device semantic search:
-// model preparation, embedding sync, and query → ranked recipe IDs.
+// RecipeSearchModel.swift — orchestrates on-device search: model prep, index sync,
+// and query → ranked recipe IDs. Combines keyword (FTS5) and semantic (mxbai) results.
+//
+// Keyword search works as soon as text is synced — it does NOT wait for the model.
+// Semantic search joins in once the model is downloaded/compiled. Results merge with
+// literal keyword hits first (high confidence), then semantically-similar recipes.
 import Foundation
 import Combine
 
 @MainActor
 final class RecipeSearchModel: ObservableObject {
     @Published private(set) var modelStatus: EmbeddingModelManager.Status = .idle
-    @Published private(set) var syncedCount: Int = 0
+    @Published private(set) var textCount: Int = 0
 
     let manager = EmbeddingModelManager()
     private let store = RecipeStore.shared
     private var statusObservation: Task<Void, Never>?
 
-    /// Minimum cosine similarity for a result to be considered a match.
+    /// Minimum cosine similarity for a semantic result to count.
     private let minScore: Float = 0.3
 
-    var isReady: Bool { manager.isReady }
+    /// Search is usable if we have any keyword text synced OR the model is ready.
+    var hasSearchCapability: Bool { textCount > 0 || manager.isReady }
+    var semanticReady: Bool { manager.isReady }
 
     init() {
-        // Mirror the manager's status onto our own published property.
         statusObservation = Task { [weak self] in
             guard let self else { return }
-            for await s in self.manager.$status.values {
-                self.modelStatus = s
-            }
+            for await s in self.manager.$status.values { self.modelStatus = s }
         }
+        textCount = (try? store?.textCount()) ?? 0
     }
 
-    /// Download/compile the model (background) then sync embeddings. Idempotent.
+    /// Download/compile the model (background) then sync the search index. Idempotent.
     func prepare() async {
         await manager.prepare()
-        await sync()
     }
 
-    /// Incrementally pull new embeddings and prune deleted ones.
+    /// Full background sync of recipe text + vectors, then prune deletions.
     func sync(knownRecipeIds: Set<String>? = nil) async {
         guard let store else { return }
         do {
-            let since = try store.latestEmbeddedAt()
-            let rows = try await APIClient.shared.getEmbeddings(all: true, since: since)
-            if !rows.isEmpty { try store.upsert(rows) }
+            let rows = try await APIClient.shared.getSearchIndex(all: true)
+            if !rows.isEmpty { try store.sync(rows) }
             if let knownRecipeIds { try store.prune(keeping: knownRecipeIds) }
-            syncedCount = (try? store.count()) ?? syncedCount
+            textCount = (try? store.textCount()) ?? textCount
         } catch {
-            // Sync failures are non-fatal; search still works on what's cached.
             print("search: sync failed — \(error.localizedDescription)")
         }
     }
 
-    /// Rank recipe IDs by semantic similarity to `query`, restricted to `candidates`
-    /// (the currently-displayed owner filter). Returns IDs best-first.
+    /// Ranked recipe IDs for `query`, restricted to `candidates` (the owner filter).
+    /// Keyword (FTS) hits rank first; semantically-similar recipes follow.
     func search(_ query: String, candidates: Set<String>) async -> [String] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, let store, let embedder = manager.embedder else { return [] }
+        guard !trimmed.isEmpty, let store else { return [] }
 
-        let prefixed = manager.queryPrefix + trimmed
-        guard let qv = await Task.detached(priority: .userInitiated, operation: {
-            embedder.embed(prefixed)
-        }).value else { return [] }
+        // 1. Keyword hits (fast, no model needed).
+        let keyword = (try? store.ftsSearch(trimmed, restrictedTo: candidates)) ?? []
 
-        let rows = (try? store.embeddings(restrictedTo: candidates)) ?? []
-        let scored = await Task.detached(priority: .userInitiated) { [minScore] in
-            rows.map { ($0.recipeId, Cosine.similarity(qv, $0.vector)) }
-                .filter { $0.1 >= minScore }
-                .sorted { $0.1 > $1.1 }
-                .map(\.0)
-        }.value
-        return scored
+        // 2. Semantic hits (only if the model is ready).
+        var semantic: [String] = []
+        if let embedder = manager.embedder {
+            let prefixed = manager.queryPrefix + trimmed
+            if let qv = await Task.detached(priority: .userInitiated, operation: {
+                embedder.embed(prefixed)
+            }).value {
+                let rows = (try? store.embeddings(restrictedTo: candidates)) ?? []
+                semantic = await Task.detached(priority: .userInitiated) { [minScore] in
+                    rows.map { ($0.recipeId, Cosine.similarity(qv, $0.vector)) }
+                        .filter { $0.1 >= minScore }
+                        .sorted { $0.1 > $1.1 }
+                        .map(\.0)
+                }.value
+            }
+        }
+
+        // 3. Merge: keyword first (literal matches), then new semantic matches.
+        var seen = Set<String>()
+        var merged: [String] = []
+        for id in keyword + semantic where seen.insert(id).inserted { merged.append(id) }
+        return merged
     }
 }
