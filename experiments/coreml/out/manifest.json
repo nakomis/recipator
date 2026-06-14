@@ -1,0 +1,26 @@
+[
+  {
+    "name": "minilm",
+    "hf": "sentence-transformers/all-MiniLM-L6-v2",
+    "pooling": "mean",
+    "prefix": ""
+  },
+  {
+    "name": "bge-small",
+    "hf": "BAAI/bge-small-en-v1.5",
+    "pooling": "cls",
+    "prefix": "Represent this sentence for searching relevant passages: "
+  },
+  {
+    "name": "bge-base",
+    "hf": "BAAI/bge-base-en-v1.5",
+    "pooling": "cls",
+    "prefix": "Represent this sentence for searching relevant passages: "
+  },
+  {
+    "name": "mxbai",
+    "hf": "mixedbread-ai/mxbai-embed-large-v1",
+    "pooling": "cls",
+    "prefix": "Represent this sentence for searching relevant passages: "
+  }
+]
