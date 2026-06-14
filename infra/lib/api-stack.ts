@@ -190,10 +190,10 @@ export class ApiStack extends cdk.Stack {
     );
     const embedFn = new lambda.DockerImageFunction(this, 'EmbedFn', {
       functionName: `recipator-embed-${deployEnv}`,
-      // arm64: matches the published image (and the Apple Silicon build host), and is
-      // cheaper to run. The function architecture and the image platform must agree,
-      // or the Lambda fails at invoke with an exec-format error.
-      architecture: lambda.Architecture.ARM_64,
+      // x86_64 (the Lambda default): the image is built + pushed by CI on x86 runners,
+      // so a native amd64 build needs no emulation. The function architecture and the
+      // published image platform must agree, or the Lambda fails at invoke with an
+      // exec-format error — publish-embed-image.sh builds --platform linux/amd64.
       code: lambda.DockerImageCode.fromEcr(embedImageRepo, { tagOrDigest: embedImageTag() }),
       memorySize: 4096,
       timeout: cdk.Duration.seconds(120),

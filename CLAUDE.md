@@ -35,7 +35,8 @@ iOS Share Extension and Chrome plugin for extracting and saving web recipes with
   (`infra/lambda/embed/`, sentence-transformers), stored as a DynamoDB Binary attribute
   (`embedding`, 1024 float32 LE). Verified identical to the on-device CoreML output.
 - **Embed image (ECR)**: the embed Lambda is a container (torch + 1.3GB model ≫ 250MB ZIP
-  limit), arm64. The image is **not** built by `cdk deploy` — `infra/scripts/publish-embed-image.sh`
+  limit), x86_64 (built natively by CI on x86 runners). The image is **not** built by
+  `cdk deploy` — `infra/scripts/publish-embed-image.sh`
   builds + pushes it to the shared `nakomis-lambda-images` ECR repo (defined in nakomis-infra)
   under a content-hashed tag, and the stack references it with `DockerImageCode.fromEcr`. The
   push is idempotent: same `Dockerfile`/`requirements.txt`/`handler.py` → same tag → skipped.
