@@ -195,7 +195,10 @@ export class ApiStack extends cdk.Stack {
       // published image platform must agree, or the Lambda fails at invoke with an
       // exec-format error — publish-embed-image.sh builds --platform linux/amd64.
       code: lambda.DockerImageCode.fromEcr(embedImageRepo, { tagOrDigest: embedImageTag() }),
-      memorySize: 4096,
+      // 3008 is the account's current Lambda memory ceiling (the pre-2020 default — the
+      // 10240 quota hasn't been raised). Ample for a single-recipe embed: the mxbai model
+      // is ~1.3GB. Bump this once the Lambda memory quota is increased if more is wanted.
+      memorySize: 3008,
       timeout: cdk.Duration.seconds(120),
       environment: { RECIPES_TABLE: recipesTable.tableName, DEPLOY_ENV: deployEnv },
       logGroup: logGroupFor('EmbedFnLogs', `recipator-embed-${deployEnv}`),
