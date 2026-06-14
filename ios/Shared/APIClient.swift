@@ -113,9 +113,11 @@ final class APIClient {
 
     // MARK: - Endpoints
 
-    func extract(url: URL) async throws -> RecipeDetail {
-        struct Body: Encodable { let url: String }
-        let data = try await request("/extract", method: "POST", body: Body(url: url.absoluteString))
+    /// Extract + save a recipe. If `html` is supplied (e.g. fetched on-device for a site
+    /// that blocks server-side fetches), the server parses it directly instead of fetching.
+    func extract(url: URL, html: String? = nil) async throws -> RecipeDetail {
+        struct Body: Encodable { let url: String; let html: String? }
+        let data = try await request("/extract", method: "POST", body: Body(url: url.absoluteString, html: html))
         guard let detail = try? JSONDecoder().decode(RecipeDetail.self, from: data) else {
             throw APIError.extractionFailed
         }
