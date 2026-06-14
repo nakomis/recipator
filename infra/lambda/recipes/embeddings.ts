@@ -2,6 +2,7 @@ import { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2 } from
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { log } from '../shared/logger';
+import { visibleOwnerIds } from '../shared/group';
 
 const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const RECIPES_TABLE = process.env.RECIPES_TABLE!;
@@ -31,7 +32,10 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
       ProjectionExpression: projection,
       ExpressionAttributeNames: names,
     }));
-    items = (res.Items ?? []) as Record<string, unknown>[];
+    // Scope the household search index to the caller's group, matching GET /recipes?all.
+    const allowed = await visibleOwnerIds(userId);
+    items = ((res.Items ?? []) as Record<string, unknown>[])
+      .filter(it => allowed.has(it.userId as string));
   } else {
     const res = await dynamo.send(new QueryCommand({
       TableName: RECIPES_TABLE,

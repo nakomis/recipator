@@ -259,11 +259,12 @@ export class ApiStack extends cdk.Stack {
       entry: path.join(__dirname, '../lambda/recipes/list.ts'),
       handler: 'handler',
       runtime,
-      environment: commonEnv,
+      environment: { ...commonEnv, GROUP_MEMBERS_PARAM: groupMembersParam.parameterName },
       bundling,
       logGroup: logGroupFor('ListFnLogs', `recipator-list-${deployEnv}`),
     });
     recipesTable.grantReadData(listFn);
+    groupMembersParam.grantRead(listFn);
 
     // ── Lambda: GET /recipes/{id} ─────────────────────────────────────────────
     const getFn = new nodejs.NodejsFunction(this, 'GetFn', {
@@ -307,11 +308,12 @@ export class ApiStack extends cdk.Stack {
       entry: path.join(__dirname, '../lambda/recipes/embeddings.ts'),
       handler: 'handler',
       runtime,
-      environment: commonEnv,
+      environment: { ...commonEnv, GROUP_MEMBERS_PARAM: groupMembersParam.parameterName },
       bundling,
       logGroup: logGroupFor('EmbeddingsFnLogs', `recipator-embeddings-${deployEnv}`),
     });
     recipesTable.grantReadData(embeddingsFn);
+    groupMembersParam.grantRead(embeddingsFn);
 
     // ── Lambda: GET /model (presigned model download) ─────────────────────────
     const modelFn = new nodejs.NodejsFunction(this, 'ModelFn', {
