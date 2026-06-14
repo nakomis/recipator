@@ -29,13 +29,33 @@ def _field_text(title: str, ingredients) -> str:
     return f"{title}. Ingredients: " + "; ".join(str(i) for i in ing)
 
 
+def _load_item(user_id: str, recipe_id: str):
+    """Fetch title + ingredients from the table (used by backfill, which sends keys only)."""
+    res = _dynamo.get_item(
+        TableName=RECIPES_TABLE,
+        Key={"userId": {"S": user_id}, "recipeId": {"S": recipe_id}},
+        ProjectionExpression="title, ingredients",
+    )
+    item = res.get("Item", {})
+    title = item.get("title", {}).get("S", "")
+    ingredients = [v.get("S", "") for v in item.get("ingredients", {}).get("L", [])]
+    return title, ingredients
+
+
 def handler(event, _context):
     # Accept either a direct payload or an SQS/event envelope.
     recipe = event if "recipeId" in event else json.loads(event.get("body", "{}"))
     recipe_id = recipe["recipeId"]
     user_id = recipe["userId"]
 
-    text = _field_text(recipe.get("title", ""), recipe.get("ingredients"))
+    # /extract passes title + ingredients inline; the backfill sends keys only, so
+    # fall back to reading them from the item.
+    title = recipe.get("title")
+    ingredients = recipe.get("ingredients")
+    if title is None or ingredients is None:
+        title, ingredients = _load_item(user_id, recipe_id)
+
+    text = _field_text(title, ingredients)
     vec = _model.encode(text, normalize_embeddings=True)
     blob = b"".join(struct.pack("<f", float(x)) for x in vec)
 
