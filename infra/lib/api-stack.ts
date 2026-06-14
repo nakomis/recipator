@@ -9,13 +9,14 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as logs from 'aws-cdk-lib/aws-logs';
-import { Platform } from 'aws-cdk-lib/aws-ecr-assets';
+import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as path from 'path';
 import { Construct } from 'constructs';
+import { embedImageTag } from './embed-image-tag';
 
 export interface ApiStackProps extends cdk.StackProps {
   deployEnv: 'sandbox' | 'prod';
@@ -181,15 +182,19 @@ export class ApiStack extends cdk.Stack {
     // ── Lambda: embed (Python container, mxbai) ───────────────────────────────
     // Async enrichment: computes a recipe's semantic-search vector and stores it
     // on the item. Container image bakes in the ~640MB model.
+    // The image is built + pushed to the shared nakomis-lambda-images ECR repo by
+    // publish-embed-image.sh (idempotent, content-hashed tag), not by `cdk deploy`.
+    // We reference it by tag here, so synth/deploy needs no Docker.
+    const embedImageRepo = ecr.Repository.fromRepositoryName(
+      this, 'EmbedImageRepo', 'nakomis-lambda-images',
+    );
     const embedFn = new lambda.DockerImageFunction(this, 'EmbedFn', {
       functionName: `recipator-embed-${deployEnv}`,
-      // arm64: matches the build host (Apple Silicon) so the image isn't cross-built,
-      // and is cheaper to run. The function architecture and the image platform must
-      // agree, or the Lambda fails at invoke with an exec-format error.
+      // arm64: matches the published image (and the Apple Silicon build host), and is
+      // cheaper to run. The function architecture and the image platform must agree,
+      // or the Lambda fails at invoke with an exec-format error.
       architecture: lambda.Architecture.ARM_64,
-      code: lambda.DockerImageCode.fromImageAsset(path.join(__dirname, '../lambda/embed'), {
-        platform: Platform.LINUX_ARM64,
-      }),
+      code: lambda.DockerImageCode.fromEcr(embedImageRepo, { tagOrDigest: embedImageTag() }),
       memorySize: 4096,
       timeout: cdk.Duration.seconds(120),
       environment: { RECIPES_TABLE: recipesTable.tableName, DEPLOY_ENV: deployEnv },
