@@ -39,7 +39,7 @@ if aws ecr describe-images --region "$REGION" --repository-name "$REPO" \
      --image-ids "imageTag=${TAG}" >/dev/null 2>&1; then
   echo "  already in ECR — skipping build and push."
 else
-  echo "  not in ECR — building (arm64) and pushing ..."
+  echo "  not in ECR — building (amd64) and pushing ..."
   aws ecr get-login-password --region "$REGION" \
     | docker login --username AWS --password-stdin "$REGISTRY"
   # amd64 to match the x86_64 Lambda function. Native on the x86 CI runners (no QEMU);
