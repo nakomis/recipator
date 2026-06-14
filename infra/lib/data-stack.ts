@@ -1,5 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 
 export interface DataStackProps extends cdk.StackProps {
@@ -9,6 +10,7 @@ export interface DataStackProps extends cdk.StackProps {
 export class DataStack extends cdk.Stack {
   readonly recipesTable: dynamodb.Table;
   readonly failuresTable: dynamodb.Table;
+  readonly modelsBucket: s3.Bucket;
 
   constructor(scope: Construct, id: string, props: DataStackProps) {
     super(scope, id, props);
@@ -36,7 +38,20 @@ export class DataStack extends cdk.Stack {
       removalPolicy,
     });
 
+    // models: hosts the on-device embedding model (mxbai) downloaded by the app on
+    // first launch via a presigned URL. Private; objects keyed by version, e.g.
+    // mxbai/v1/model.mlpackage.zip plus mxbai/v1/manifest.json.
+    this.modelsBucket = new s3.Bucket(this, 'ModelsBucket', {
+      bucketName: `recipator-models-${deployEnv}`,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      removalPolicy,
+      autoDeleteObjects: !isProd,
+    });
+
     new cdk.CfnOutput(this, 'RecipesTableName', { value: this.recipesTable.tableName });
     new cdk.CfnOutput(this, 'FailuresTableName', { value: this.failuresTable.tableName });
+    new cdk.CfnOutput(this, 'ModelsBucketName', { value: this.modelsBucket.bucketName });
   }
 }

@@ -8,6 +8,7 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
@@ -18,6 +19,7 @@ export interface ApiStackProps extends cdk.StackProps {
   deployEnv: 'sandbox' | 'prod';
   recipesTable: dynamodb.ITable;
   failuresTable: dynamodb.ITable;
+  modelsBucket: s3.IBucket;
   certificate: acm.ICertificate;
   zone: route53.IHostedZone;
   appDomain: string;
@@ -27,7 +29,7 @@ export class ApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
-    const { deployEnv, recipesTable, failuresTable, certificate, zone, appDomain } = props;
+    const { deployEnv, recipesTable, failuresTable, modelsBucket, certificate, zone, appDomain } = props;
 
     // ── Shared Cognito user pool ──────────────────────────────────────────────
     const userPoolId = ssm.StringParameter.valueForStringParameter(
@@ -164,6 +166,18 @@ export class ApiStack extends cdk.Stack {
     });
     groupMembersParam.grantRead(configFn);
 
+    // ── Lambda: embed (Python container, mxbai) ───────────────────────────────
+    // Async enrichment: computes a recipe's semantic-search vector and stores it
+    // on the item. Container image bakes in the ~640MB model.
+    const embedFn = new lambda.DockerImageFunction(this, 'EmbedFn', {
+      functionName: `recipator-embed-${deployEnv}`,
+      code: lambda.DockerImageCode.fromImageAsset(path.join(__dirname, '../lambda/embed')),
+      memorySize: 4096,
+      timeout: cdk.Duration.seconds(120),
+      environment: { RECIPES_TABLE: recipesTable.tableName },
+    });
+    recipesTable.grantWriteData(embedFn);
+
     // ── Lambda: POST /extract ─────────────────────────────────────────────────
     const extractFn = new nodejs.NodejsFunction(this, 'ExtractFn', {
       functionName: `recipator-extract-${deployEnv}`,
@@ -175,6 +189,7 @@ export class ApiStack extends cdk.Stack {
       environment: {
         ...commonEnv,
         ANTHROPIC_KEY_PARAM: anthropicKeyParam.parameterName,
+        EMBED_FUNCTION_NAME: embedFn.functionName,
       },
       bundling,
     });
@@ -183,6 +198,7 @@ export class ApiStack extends cdk.Stack {
       actions: ['ssm:GetParameter'],
       resources: [anthropicKeyParam.parameterArn],
     }));
+    embedFn.grantInvoke(extractFn);
 
     // ── Lambda: GET /recipes ──────────────────────────────────────────────────
     const listFn = new nodejs.NodejsFunction(this, 'ListFn', {
@@ -227,6 +243,32 @@ export class ApiStack extends cdk.Stack {
       bundling,
     });
     recipesTable.grantWriteData(deleteFn);
+
+    // ── Lambda: GET /embeddings ───────────────────────────────────────────────
+    const embeddingsFn = new nodejs.NodejsFunction(this, 'EmbeddingsFn', {
+      functionName: `recipator-embeddings-${deployEnv}`,
+      entry: path.join(__dirname, '../lambda/recipes/embeddings.ts'),
+      handler: 'handler',
+      runtime,
+      environment: commonEnv,
+      bundling,
+    });
+    recipesTable.grantReadData(embeddingsFn);
+
+    // ── Lambda: GET /model (presigned model download) ─────────────────────────
+    const modelFn = new nodejs.NodejsFunction(this, 'ModelFn', {
+      functionName: `recipator-model-${deployEnv}`,
+      entry: path.join(__dirname, '../lambda/model/get.ts'),
+      handler: 'handler',
+      runtime,
+      environment: {
+        ...commonEnv,
+        MODELS_BUCKET: modelsBucket.bucketName,
+        MODEL_MANIFEST_KEY: 'mxbai/v1/manifest.json',
+      },
+      bundling,
+    });
+    modelsBucket.grantRead(modelFn);
 
     // ── Lambda: POST /failures ────────────────────────────────────────────────
     const reportFailureFn = new nodejs.NodejsFunction(this, 'ReportFailureFn', {
@@ -277,6 +319,8 @@ export class ApiStack extends cdk.Stack {
     api.addRoutes({ path: '/config',         methods: [apigwv2.HttpMethod.GET],    integration: new HttpLambdaIntegration('ConfigInt',   configFn) });
     api.addRoutes({ path: '/extract',        methods: [apigwv2.HttpMethod.POST],   integration: new HttpLambdaIntegration('ExtractInt',  extractFn) });
     api.addRoutes({ path: '/recipes',        methods: [apigwv2.HttpMethod.GET],    integration: new HttpLambdaIntegration('ListInt',     listFn) });
+    api.addRoutes({ path: '/embeddings',     methods: [apigwv2.HttpMethod.GET],    integration: new HttpLambdaIntegration('EmbeddingsInt', embeddingsFn) });
+    api.addRoutes({ path: '/model',          methods: [apigwv2.HttpMethod.GET],    integration: new HttpLambdaIntegration('ModelInt',    modelFn) });
     api.addRoutes({ path: '/recipes/{id}',   methods: [apigwv2.HttpMethod.GET],    integration: new HttpLambdaIntegration('GetInt',      getFn) });
     api.addRoutes({ path: '/recipes/{id}',   methods: [apigwv2.HttpMethod.PATCH],  integration: new HttpLambdaIntegration('UpdateInt',   updateFn) });
     api.addRoutes({ path: '/recipes/{id}',   methods: [apigwv2.HttpMethod.DELETE], integration: new HttpLambdaIntegration('DeleteInt',   deleteFn) });
