@@ -1,26 +1,18 @@
 import { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2 } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
-import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 import { LambdaClient, InvokeCommand, InvocationType } from '@aws-sdk/client-lambda';
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { randomUUID } from 'crypto';
+import { log } from '../shared/logger';
 
 const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-const ssmClient = new SSMClient({});
 const lambdaClient = new LambdaClient({});
+const bedrock = new BedrockRuntimeClient({});
 
 const RECIPES_TABLE   = process.env.RECIPES_TABLE!;
-const ANTHROPIC_PARAM = process.env.ANTHROPIC_KEY_PARAM!;
+const BEDROCK_MODEL_ID = process.env.BEDROCK_MODEL_ID!; // foundation model or inference-profile ID
 const EMBED_FUNCTION  = process.env.EMBED_FUNCTION_NAME; // optional; async enrichment
-
-let cachedAnthropicKey: string | undefined;
-
-async function getAnthropicKey(): Promise<string> {
-  if (cachedAnthropicKey) return cachedAnthropicKey;
-  const res = await ssmClient.send(new GetParameterCommand({ Name: ANTHROPIC_PARAM }));
-  cachedAnthropicKey = res.Parameter!.Value!;
-  return cachedAnthropicKey;
-}
 
 function ok(body: unknown): APIGatewayProxyResultV2 {
   return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -33,7 +25,7 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
   const claims = event.requestContext.authorizer?.jwt?.claims ?? {};
   const userId    = claims['sub'] as string | undefined;
   const userEmail = (claims['email'] ?? claims['username'] ?? '') as string;
-  if (!userId) return err(401, 'Unauthorised');
+  if (!userId) { log.warn('extract:unauthorised'); return err(401, 'Unauthorised'); }
 
   const body = JSON.parse(event.body ?? '{}') as { url?: string };
   if (!body.url) return err(400, 'url is required');
@@ -41,31 +33,30 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
   let url: URL;
   try { url = new URL(body.url); } catch { return err(400, 'Invalid URL'); }
 
-  console.log('extract:start', { url: url.toString(), userId });
+  log.info('extract:start', { url: url.toString(), userId });
 
   // Fetch page
   const pageRes = await fetch(url.toString(), {
     headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15' },
   });
   if (!pageRes.ok) {
-    console.log('extract:fetch_failed', { url: url.toString(), status: pageRes.status });
+    log.warn('extract:fetch_failed', { url: url.toString(), status: pageRes.status });
     return err(502, `Failed to fetch page: ${pageRes.status}`);
   }
   const html = await pageRes.text();
 
   // Try JSON-LD first
   let extracted = extractFromJSONLD(html, url.toString());
-  console.log('extract:jsonld', { url: url.toString(), found: !!extracted });
+  log.info('extract:jsonld', { url: url.toString(), found: !!extracted });
 
-  // Fall back to Claude Haiku
+  // Fall back to Claude Haiku (via Bedrock)
   if (!extracted || extracted.ingredients.length === 0) {
-    const apiKey = await getAnthropicKey();
-    extracted = await extractWithClaude(html, url.toString(), apiKey);
-    console.log('extract:claude', { url: url.toString(), found: !!extracted });
+    extracted = await extractWithClaude(html, url.toString());
+    log.info('extract:claude', { url: url.toString(), found: !!extracted });
   }
 
   if (!extracted) {
-    console.log('extract:failed', { url: url.toString() });
+    log.warn('extract:failed', { url: url.toString() });
     return err(422, 'Could not extract a recipe from this page');
   }
 
@@ -87,6 +78,10 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
   };
 
   await dynamo.send(new PutCommand({ TableName: RECIPES_TABLE, Item: item }));
+  log.info('extract:saved', {
+    recipeId, userId, source: extracted.ingredients.length ? 'ok' : 'empty',
+    ingredients: extracted.ingredients.length, steps: extracted.method.length,
+  });
 
   // Fire-and-forget: compute the semantic-search embedding out of band so the
   // share-sheet response stays snappy. The recipe is searchable once this lands.
@@ -100,7 +95,7 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
         })),
       }));
     } catch (e) {
-      console.log('extract:embed_invoke_failed', { recipeId, error: String(e) });
+      log.warn('extract:embed_invoke_failed', { recipeId, error: String(e) });
     }
   }
 
@@ -214,32 +209,30 @@ function parseRecipeSchema(obj: Record<string, unknown>): ExtractedRecipe | null
   return { title: name, ingredients, method };
 }
 
-// ── Claude Haiku fallback ─────────────────────────────────────────────────────
+// ── Claude Haiku fallback (Amazon Bedrock) ────────────────────────────────────
 
-async function extractWithClaude(html: string, url: string, apiKey: string): Promise<ExtractedRecipe | null> {
+async function extractWithClaude(html: string, url: string): Promise<ExtractedRecipe | null> {
   const truncated = html.length > 40_000 ? html.slice(0, 40_000) : html;
   const prompt = `Extract the recipe from this HTML. Return ONLY valid JSON: {"title":"…","ingredients":["…"],"method":["…"]}. If no recipe found, return {"error":"no recipe"}.\n\nURL: ${url}\n\nHTML:\n${truncated}`;
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2048,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
-
-  if (!res.ok) {
-    console.log('extract:claude_api_error', { url, status: res.status });
+  let raw: string;
+  try {
+    const res = await bedrock.send(new InvokeModelCommand({
+      modelId: BEDROCK_MODEL_ID,
+      contentType: 'application/json',
+      accept: 'application/json',
+      body: JSON.stringify({
+        anthropic_version: 'bedrock-2023-05-31',
+        max_tokens: 2048,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    }));
+    const data = JSON.parse(new TextDecoder().decode(res.body)) as { content?: Array<{ text?: string }> };
+    raw = data.content?.[0]?.text ?? '';
+  } catch (e) {
+    log.error('extract:claude_bedrock_error', { url, error: String(e) });
     return null;
   }
-  const data = await res.json() as { content?: Array<{ text?: string }> };
-  const raw = data.content?.[0]?.text ?? '';
   // Strip markdown code fences Claude sometimes wraps around JSON
   const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
 
@@ -248,7 +241,7 @@ async function extractWithClaude(html: string, url: string, apiKey: string): Pro
     if (result.error || !result.title || !result.ingredients || !result.method) return null;
     return { title: result.title, ingredients: result.ingredients, method: result.method };
   } catch {
-    console.log('extract:claude_parse_error', { url, raw });
+    log.warn('extract:claude_parse_error', { url, raw });
     return null;
   }
 }

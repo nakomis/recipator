@@ -8,6 +8,7 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
@@ -135,13 +136,10 @@ export class ApiStack extends cdk.Stack {
       this, 'GroupMembersParam', `/recipator/${deployEnv}/group-members`,
     );
 
-    // ── Anthropic API key (placeholder; overwrite after first deploy) ─────────
-    // Deploy first, then: aws ssm put-parameter --overwrite --name /recipator/{env}/anthropic-api-key --value "sk-ant-..."
-    const anthropicKeyParam = new ssm.StringParameter(this, 'AnthropicKeyParam', {
-      parameterName: `/recipator/${deployEnv}/anthropic-api-key`,
-      stringValue: 'PLACEHOLDER',
-      description: 'Anthropic API key for recipe extraction (overwrite after deploy)',
-    });
+    // ── Bedrock model for the Claude extraction fallback ──────────────────────
+    // Cross-region inference profile (eu-west-2 → `eu.` prefix). Requires model
+    // access to be enabled for Anthropic Claude in the Bedrock console once.
+    const bedrockModelId = 'eu.anthropic.claude-haiku-4-5-20251001-v1:0';
 
     // ── Lambda shared config ──────────────────────────────────────────────────
     const runtime = lambda.Runtime.NODEJS_22_X;
@@ -155,6 +153,18 @@ export class ApiStack extends cdk.Stack {
       DEPLOY_ENV: deployEnv,
     };
 
+    // Explicit, predictably-named log group per function (so they're easy to find
+    // in the console) with 6-month retention. Without this, Lambda auto-creates a
+    // `/aws/lambda/<fn>` group that never expires. Retained on prod, torn down on
+    // sandbox alongside the function.
+    const logRemoval = deployEnv === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY;
+    const logGroupFor = (id: string, functionName: string) =>
+      new logs.LogGroup(this, id, {
+        logGroupName: `/aws/lambda/${functionName}`,
+        retention: logs.RetentionDays.SIX_MONTHS,
+        removalPolicy: logRemoval,
+      });
+
     // ── Lambda: GET /config ───────────────────────────────────────────────────
     const configFn = new nodejs.NodejsFunction(this, 'ConfigFn', {
       functionName: `recipator-config-${deployEnv}`,
@@ -163,6 +173,7 @@ export class ApiStack extends cdk.Stack {
       runtime,
       environment: { ...commonEnv, GROUP_MEMBERS_PARAM: groupMembersParam.parameterName },
       bundling,
+      logGroup: logGroupFor('ConfigFnLogs', `recipator-config-${deployEnv}`),
     });
     groupMembersParam.grantRead(configFn);
 
@@ -174,7 +185,8 @@ export class ApiStack extends cdk.Stack {
       code: lambda.DockerImageCode.fromImageAsset(path.join(__dirname, '../lambda/embed')),
       memorySize: 4096,
       timeout: cdk.Duration.seconds(120),
-      environment: { RECIPES_TABLE: recipesTable.tableName },
+      environment: { RECIPES_TABLE: recipesTable.tableName, DEPLOY_ENV: deployEnv },
+      logGroup: logGroupFor('EmbedFnLogs', `recipator-embed-${deployEnv}`),
     });
     recipesTable.grantWriteData(embedFn);
 
@@ -188,15 +200,21 @@ export class ApiStack extends cdk.Stack {
       memorySize: 512,
       environment: {
         ...commonEnv,
-        ANTHROPIC_KEY_PARAM: anthropicKeyParam.parameterName,
+        BEDROCK_MODEL_ID: bedrockModelId,
         EMBED_FUNCTION_NAME: embedFn.functionName,
       },
       bundling,
+      logGroup: logGroupFor('ExtractFnLogs', `recipator-extract-${deployEnv}`),
     });
     recipesTable.grantWriteData(extractFn);
+    // Invoke Anthropic models on Bedrock, both directly and via inference profiles
+    // (the `eu.` profile fans out to the underlying foundation models in-region).
     extractFn.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['ssm:GetParameter'],
-      resources: [anthropicKeyParam.parameterArn],
+      actions: ['bedrock:InvokeModel'],
+      resources: [
+        `arn:aws:bedrock:*::foundation-model/anthropic.*`,
+        `arn:aws:bedrock:*:${this.account}:inference-profile/*`,
+      ],
     }));
     embedFn.grantInvoke(extractFn);
 
@@ -208,6 +226,7 @@ export class ApiStack extends cdk.Stack {
       runtime,
       environment: commonEnv,
       bundling,
+      logGroup: logGroupFor('ListFnLogs', `recipator-list-${deployEnv}`),
     });
     recipesTable.grantReadData(listFn);
 
@@ -219,6 +238,7 @@ export class ApiStack extends cdk.Stack {
       runtime,
       environment: commonEnv,
       bundling,
+      logGroup: logGroupFor('GetFnLogs', `recipator-get-${deployEnv}`),
     });
     recipesTable.grantReadData(getFn);
 
@@ -230,6 +250,7 @@ export class ApiStack extends cdk.Stack {
       runtime,
       environment: commonEnv,
       bundling,
+      logGroup: logGroupFor('UpdateFnLogs', `recipator-update-${deployEnv}`),
     });
     recipesTable.grantWriteData(updateFn);
 
@@ -241,6 +262,7 @@ export class ApiStack extends cdk.Stack {
       runtime,
       environment: commonEnv,
       bundling,
+      logGroup: logGroupFor('DeleteFnLogs', `recipator-delete-${deployEnv}`),
     });
     recipesTable.grantWriteData(deleteFn);
 
@@ -252,6 +274,7 @@ export class ApiStack extends cdk.Stack {
       runtime,
       environment: commonEnv,
       bundling,
+      logGroup: logGroupFor('EmbeddingsFnLogs', `recipator-embeddings-${deployEnv}`),
     });
     recipesTable.grantReadData(embeddingsFn);
 
@@ -267,6 +290,7 @@ export class ApiStack extends cdk.Stack {
         MODEL_MANIFEST_KEY: 'mxbai/v1/manifest.json',
       },
       bundling,
+      logGroup: logGroupFor('ModelFnLogs', `recipator-model-${deployEnv}`),
     });
     modelsBucket.grantRead(modelFn);
 
@@ -278,6 +302,7 @@ export class ApiStack extends cdk.Stack {
       runtime,
       environment: commonEnv,
       bundling,
+      logGroup: logGroupFor('ReportFailureFnLogs', `recipator-report-failure-${deployEnv}`),
     });
     failuresTable.grantWriteData(reportFailureFn);
 

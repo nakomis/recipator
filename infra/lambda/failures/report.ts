@@ -2,6 +2,7 @@ import { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2 } from
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
+import { log } from '../shared/logger';
 
 const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const FAILURES_TABLE = process.env.FAILURES_TABLE!;
@@ -15,7 +16,7 @@ interface FailureReport {
 
 export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<APIGatewayProxyResultV2> {
   const userId = event.requestContext.authorizer?.jwt?.claims?.sub as string | undefined;
-  if (!userId) return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorised' }) };
+  if (!userId) { log.warn('failures:unauthorised'); return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorised' }) }; }
 
   const body = JSON.parse(event.body ?? '{}') as FailureReport;
   if (!body.url || !body.errorType) {
@@ -35,6 +36,9 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
   };
 
   await dynamo.send(new PutCommand({ TableName: FAILURES_TABLE, Item: item }));
+
+  // Captured capture-failures are a quality signal — log at warn so they surface.
+  log.warn('failures:report', { failureId: item.failureId, userId, errorType: item.errorType, hostname: item.hostname });
 
   return {
     statusCode: 201,
