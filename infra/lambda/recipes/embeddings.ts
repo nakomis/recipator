@@ -16,7 +16,11 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
   if (!userId) { log.warn('embeddings:unauthorised'); return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorised' }) }; }
 
   const all = event.queryStringParameters?.all === 'true';
-  const projection = 'recipeId, userId, title, ingredients, method, embedding, embeddingModel, embeddedAt';
+  // Alias every projected attribute via ExpressionAttributeNames — `method` is a DynamoDB
+  // reserved keyword (others may be added later), and a bare name fails the whole query.
+  const attrs = ['recipeId', 'userId', 'title', 'ingredients', 'method', 'embedding', 'embeddingModel', 'embeddedAt'];
+  const names = Object.fromEntries(attrs.map(a => [`#${a}`, a]));
+  const projection = attrs.map(a => `#${a}`).join(', ');
   const notDeleted = 'attribute_not_exists(deletedAt)';
 
   let items: Record<string, unknown>[];
@@ -25,6 +29,7 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
       TableName: RECIPES_TABLE,
       FilterExpression: notDeleted,
       ProjectionExpression: projection,
+      ExpressionAttributeNames: names,
     }));
     items = (res.Items ?? []) as Record<string, unknown>[];
   } else {
@@ -34,6 +39,7 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
       ExpressionAttributeValues: { ':uid': userId },
       FilterExpression: notDeleted,
       ProjectionExpression: projection,
+      ExpressionAttributeNames: names,
     }));
     items = (res.Items ?? []) as Record<string, unknown>[];
   }
