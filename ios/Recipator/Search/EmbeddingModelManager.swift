@@ -99,11 +99,17 @@ final class EmbeddingModelManager: ObservableObject {
 
     /// Loads the compiled model and warms it up so the ANE stall happens now.
     private func load(version: String, tokenizer: BertTokenizer) async -> Bool {
-        guard let embedder = CoreMLEmbedder(compiledModelURL: compiledURL(version), tokenizer: tokenizer) else {
-            return false
-        }
-        // Warm-up on a background thread: triggers ANE specialisation off the main actor.
-        let warmed = await Task.detached { embedder.embed("warm up") != nil }.value
+        let url = compiledURL(version)
+        // Build the embedder OFF the main actor. `MLModel(contentsOf:)` with `.all`
+        // compute units does heavy load + ANE specialisation eagerly, and this manager
+        // is @MainActor — constructing it here directly blocked the UI for ~20s on every
+        // cold launch (the compiled model is loaded from cache each time, not just first run).
+        let embedder = await Task.detached(priority: .userInitiated) {
+            CoreMLEmbedder(compiledModelURL: url, tokenizer: tokenizer)
+        }.value
+        guard let embedder else { return false }
+        // Warm-up on a background thread: triggers any remaining ANE specialisation off-main.
+        let warmed = await Task.detached(priority: .userInitiated) { embedder.embed("warm up") != nil }.value
         guard warmed else { return false }
         self.embedder = embedder
         status = .ready
