@@ -18,11 +18,29 @@ iOS Share Extension and Chrome plugin for extracting and saving web recipes with
 
 | Method | Path | Description |
 |---|---|---|
-| POST | /extract | Fetch URL, extract recipe, save to DynamoDB |
+| POST | /extract | Fetch URL, extract recipe, save to DynamoDB; async-invokes embed-Lambda |
 | GET | /recipes | List user's recipes |
 | GET | /recipes/{id} | Get one recipe |
 | DELETE | /recipes/{id} | Soft delete (TTL 6 months) |
 | POST | /failures | Report a capture failure |
+| GET | /model | Presigned download URL + manifest for the on-device embedding model |
+| GET | /embeddings | Sync recipe vectors to the device (`?all`, `?since=<iso>`) |
+
+## Semantic search (RECP-19)
+
+- **Model**: `mxbai-embed-large-v1` (1024-dim). Chosen by on-device speedrun + nDCG benchmark
+  (see `experiments/`). Apple `NLEmbedding` was rejected (nDCG 0.116). Single combined
+  **title + ingredients** embedding.
+- **Server**: recipe vectors computed by an async Python container embed-Lambda
+  (`infra/lambda/embed/`, sentence-transformers), stored as a DynamoDB Binary attribute
+  (`embedding`, 1024 float32 LE). Verified identical to the on-device CoreML output.
+- **Model delivery**: private S3 bucket `recipator-models-{env}`; app downloads via presigned
+  `/model` URL on first launch, verifies sha256, compiles + warms up in the background
+  (search disabled until ready). Publish a model with `infra/scripts/publish-model.sh`.
+- **On-device**: GRDB store of vectors synced from `/embeddings`; query embedded on-device
+  (`BertTokenizer` + `CoreMLEmbedder`, both in `ios/Recipator/Search/`), cosine ranking.
+- **Model is swappable only before first deploy** — changing it later means re-embedding everything.
+- Fast-follow option: SQLite **FTS5** over ingredient text (GRDB already present) for exact-ingredient lookups.
 
 ## Apple Developer
 
