@@ -19,6 +19,14 @@ configs:
     Debug Production: debug
     Release Production: release
 
+packages:
+    GRDB:
+        url: https://github.com/groue/GRDB.swift
+        from: 7.0.0
+    ZIPFoundation:
+        url: https://github.com/weichsel/ZIPFoundation
+        from: 0.9.0
+
 targets:
     Recipator:
         type: application
@@ -77,6 +85,8 @@ targets:
                     RecipatorCognitoLoginDomain: login.nakomis.com
         dependencies:
             - target: RecipatorShare
+            - package: GRDB
+            - package: ZIPFoundation
 
     RecipatorShare:
         type: app-extension

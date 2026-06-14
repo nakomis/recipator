@@ -27,6 +27,29 @@ struct GroupMember: Codable {
     let displayName: String
 }
 
+/// Response of GET /model — describes the current on-device embedding model.
+struct ModelInfo: Codable {
+    let version: String
+    let sha256: String
+    let dim: Int
+    let queryPrefix: String
+    let url: String        // presigned S3 GET URL
+    let expiresIn: Int
+}
+
+/// One recipe's search-index row from GET /embeddings: text for FTS plus the
+/// embedding vector (base64 float32 LE) when one has been computed.
+struct SearchIndexRow: Codable {
+    let recipeId: String
+    let userId: String
+    let title: String
+    let ingredients: [String]
+    let method: [String]
+    let model: String?
+    let embeddedAt: String?
+    let embedding: String?   // nil until the recipe has been embedded
+}
+
 struct RecipeDetail: Codable, Identifiable {
     let recipeId: String
     let title: String
@@ -132,6 +155,18 @@ final class APIClient {
         let data = try await request("/config")
         struct Response: Decodable { let groupMembers: [GroupMember] }
         return (try? JSONDecoder().decode(Response.self, from: data))?.groupMembers ?? []
+    }
+
+    func getModelInfo() async throws -> ModelInfo {
+        let data = try await request("/model")
+        return try JSONDecoder().decode(ModelInfo.self, from: data)
+    }
+
+    func getSearchIndex(all: Bool = true) async throws -> [SearchIndexRow] {
+        let query = all ? "?all=true" : ""
+        let data = try await request("/embeddings\(query)")
+        struct Response: Decodable { let items: [SearchIndexRow] }
+        return (try? JSONDecoder().decode(Response.self, from: data))?.items ?? []
     }
 
     func reportFailure(url: String, errorType: String, htmlSnippet: String? = nil) async throws {

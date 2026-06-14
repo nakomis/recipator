@@ -12,6 +12,9 @@ struct RecipeListView: View {
     // The segmented picker uses userId as the tag value; everyoneTag is the sentinel for "all".
     @State private var selectedUserId: String = ""
     @State private var groupMembers: [GroupMember] = []
+    @StateObject private var search = RecipeSearchModel()
+    @State private var searchText = ""
+    @State private var rankedIds: [String]? = nil   // nil = not yet computed for this query
 
     private var isInGroup: Bool {
         guard let uid = auth.userId else { return false }
@@ -44,6 +47,19 @@ struct RecipeListView: View {
         return allRecipes.filter { $0.userId == selectedUserId }
     }
 
+    private var trimmedQuery: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    private var isSearching: Bool { !trimmedQuery.isEmpty }
+
+    // When searching, reorder the owner-filtered list by semantic rank (best first).
+    private var visibleRecipes: [RecipeListItem] {
+        guard isSearching else { return displayedRecipes }
+        guard let ranked = rankedIds else { return [] }
+        let byId = Dictionary(displayedRecipes.map { ($0.recipeId, $0) }, uniquingKeysWith: { a, _ in a })
+        return ranked.compactMap { byId[$0] }
+    }
+
     private func firstName(from email: String) -> String {
         let local = email.components(separatedBy: "@").first ?? email
         let first = local.components(separatedBy: ".").first ?? local
@@ -53,7 +69,9 @@ struct RecipeListView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if isLoading && allRecipes.isEmpty {
+                if isSearching {
+                    searchContent
+                } else if isLoading && allRecipes.isEmpty {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if displayedRecipes.isEmpty {
@@ -63,23 +81,11 @@ struct RecipeListView: View {
                         description: Text("Share a recipe URL from Safari or Chrome to save it here.")
                     )
                 } else {
-                    List {
-                        ForEach(displayedRecipes) { recipe in
-                            Button {
-                                Task { await load(recipe.recipeId, userId: recipe.userId) }
-                            } label: {
-                                RecipeRow(recipe: recipe, showOwner: selectedUserId == everyoneTag)
-                            }
-                            .swipeActions(edge: .trailing) {
-                                Button("Delete", role: .destructive) {
-                                    Task { await delete(recipe.recipeId) }
-                                }
-                            }
-                        }
-                    }
-                    .refreshable { await fetch() }
+                    recipeList(displayedRecipes, refreshable: true)
                 }
             }
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always),
+                        prompt: "Search recipes")
             .navigationTitle("Recipator")
             .toolbar {
                 if isInGroup {
@@ -136,9 +142,75 @@ struct RecipeListView: View {
             async let config: () = loadConfig()
             async let recipes: () = fetch()
             _ = await (config, recipes)
+            // Sync the search index immediately (enables keyword search now); prepare the
+            // embedding model in parallel (enables semantic search once it lands).
+            Task { await search.sync(knownRecipeIds: Set(allRecipes.map(\.recipeId))) }
+            Task { await search.prepare() }
+        }
+        // Debounced search: recompute ranking when the query settles.
+        .task(id: searchText) {
+            guard isSearching else { rankedIds = nil; return }
+            guard search.hasSearchCapability else { rankedIds = nil; return }
+            rankedIds = nil
+            try? await Task.sleep(for: .milliseconds(250))
+            if Task.isCancelled { return }
+            let candidates = Set(displayedRecipes.map(\.recipeId))
+            let result = await search.search(searchText, candidates: candidates)
+            if !Task.isCancelled { rankedIds = result }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             Task { await fetch() }
+        }
+    }
+
+    // MARK: - Search UI
+
+    @ViewBuilder
+    private var searchContent: some View {
+        if !search.hasSearchCapability {
+            ContentUnavailableView {
+                Label(searchPrepLabel, systemImage: "sparkles")
+            } description: {
+                Text("Search is getting ready. This happens once.")
+            }
+        } else if rankedIds == nil {
+            ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if visibleRecipes.isEmpty {
+            ContentUnavailableView.search(text: trimmedQuery)
+        } else {
+            recipeList(visibleRecipes, refreshable: false)
+        }
+    }
+
+    private var searchPrepLabel: String {
+        switch search.modelStatus {
+        case .downloading: return "Downloading search model…"
+        case .preparing:   return "Preparing search…"
+        case .failed:      return "Search unavailable"
+        default:           return "Preparing search…"
+        }
+    }
+
+    @ViewBuilder
+    private func recipeList(_ recipes: [RecipeListItem], refreshable: Bool) -> some View {
+        let list = List {
+            ForEach(recipes) { recipe in
+                Button {
+                    Task { await load(recipe.recipeId, userId: recipe.userId) }
+                } label: {
+                    RecipeRow(recipe: recipe, showOwner: selectedUserId == everyoneTag)
+                }
+                .swipeActions(edge: .trailing) {
+                    Button("Delete", role: .destructive) {
+                        Task { await delete(recipe.recipeId) }
+                    }
+                }
+            }
+        }
+        if refreshable {
+            list.refreshable { await fetch() }
+        } else {
+            list
         }
     }
 

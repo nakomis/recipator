@@ -2,13 +2,16 @@ import { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2 } from
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
+import { LambdaClient, InvokeCommand, InvocationType } from '@aws-sdk/client-lambda';
 import { randomUUID } from 'crypto';
 
 const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const ssmClient = new SSMClient({});
+const lambdaClient = new LambdaClient({});
 
 const RECIPES_TABLE   = process.env.RECIPES_TABLE!;
 const ANTHROPIC_PARAM = process.env.ANTHROPIC_KEY_PARAM!;
+const EMBED_FUNCTION  = process.env.EMBED_FUNCTION_NAME; // optional; async enrichment
 
 let cachedAnthropicKey: string | undefined;
 
@@ -84,6 +87,23 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
   };
 
   await dynamo.send(new PutCommand({ TableName: RECIPES_TABLE, Item: item }));
+
+  // Fire-and-forget: compute the semantic-search embedding out of band so the
+  // share-sheet response stays snappy. The recipe is searchable once this lands.
+  if (EMBED_FUNCTION) {
+    try {
+      await lambdaClient.send(new InvokeCommand({
+        FunctionName: EMBED_FUNCTION,
+        InvocationType: InvocationType.Event,
+        Payload: Buffer.from(JSON.stringify({
+          recipeId, userId, title: extracted.title, ingredients: extracted.ingredients,
+        })),
+      }));
+    } catch (e) {
+      console.log('extract:embed_invoke_failed', { recipeId, error: String(e) });
+    }
+  }
+
   return ok({ ...item, imageCandidates });
 }
 
