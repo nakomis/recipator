@@ -203,7 +203,9 @@ export class ApiStack extends cdk.Stack {
       environment: { RECIPES_TABLE: recipesTable.tableName, DEPLOY_ENV: deployEnv },
       logGroup: logGroupFor('EmbedFnLogs', `recipator-embed-${deployEnv}`),
     });
-    recipesTable.grantWriteData(embedFn);
+    // Read + write: writes the embedding, and reads title/ingredients when invoked with
+    // keys only (the backfill path; /extract passes them in the payload).
+    recipesTable.grantReadWriteData(embedFn);
 
     // ── Lambda: POST /extract ─────────────────────────────────────────────────
     const extractFn = new nodejs.NodejsFunction(this, 'ExtractFn', {
