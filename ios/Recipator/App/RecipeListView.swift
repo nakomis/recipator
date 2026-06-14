@@ -112,6 +112,17 @@ struct RecipeListView: View {
                     }
                     .disabled(isLoading)
                 }
+                if AppConfig.isSandbox {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Text("SANDBOX")
+                            .font(.caption2.bold())
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.green, in: Capsule())
+                            .accessibilityLabel("Sandbox environment")
+                    }
+                }
                 ToolbarItem(placement: .bottomBar) {
                     Text("v\(Bundle.main.appVersion)")
                         .font(.caption2)
