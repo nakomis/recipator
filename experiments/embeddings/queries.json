@@ -1,0 +1,47 @@
+{
+  "_comment": "Relevance judgements by recipe title substring (case-insensitive). 'relevant' = should appear in top results. These exercise SEMANTIC matching, not keyword.",
+  "queries": [
+    {
+      "query": "korean food",
+      "note": "SEMANTIC TRAP: no title contains 'korean'. Kimchi dishes should win.",
+      "relevant": ["Kimchi-Braised Chicken", "Quick Kimchi Pancakes"]
+    },
+    {
+      "query": "something with chickpeas",
+      "relevant": ["Edamame Chickpea Feta Salad", "Chickpea salad", "Spicy bean burgers", "Five-Bean Salad", "Protein-Packed Bean Salad"]
+    },
+    {
+      "query": "spicy slow-cooked beef",
+      "relevant": ["Ethiopian Beef stew", "Beef goulash", "Chili con Carne", "Beer-braised beef cheek", "Moroccan lamb tagine", "Hot honey beef bowl"]
+    },
+    {
+      "query": "apple dessert",
+      "relevant": ["Caramel apple loaf cake", "Gluten free apple cake", "Grated apple brunch pancakes", "Caramel apple cinnamon buns", "Roasted Figs"]
+    },
+    {
+      "query": "quick weeknight chicken dinner",
+      "relevant": ["'Marry me' chicken", "Creamy Chicken Marsala", "Air fryer hunter's chicken", "Bacon & Cheese Smothered Garlic Chicken", "Chicken, mustard and spinach cobbler", "Chicken Pot Pie", "Pulled chicken & black bean chilli"]
+    },
+    {
+      "query": "cheesy comfort food bake",
+      "relevant": ["A Classic Cheese and Onion Flan", "Cheese and onion flan", "Leek and cheddar bread and butter pudding", "Potato Leek Gratin", "Cheesy Zucchini Gratin", "Creamy Cheesy Hot Corn Dip", "Mexican tortilla bake"]
+    },
+    {
+      "query": "vegetarian salad",
+      "relevant": ["Edamame Chickpea Feta Salad", "Chickpea salad", "Wild rice, cranberry and feta salad", "Mob's Smashed Cucumber and Halloumi Salad", "Five-Bean Salad", "Protein-Packed Bean Salad", "Beetroot Slaw"]
+    },
+    {
+      "query": "welsh beef",
+      "note": "CROSS-LINGUAL: Welsh-language titles should surface alongside English.",
+      "relevant": ["Brisged Cig Eidion Cymru", "Tasty Welsh Beef Biscuit", "Burrito Cig Eidion Cymru", "Welsh Beef Burrito"]
+    },
+    {
+      "query": "seafood pasta",
+      "relevant": ["Creamy Prawn Linguine", "Instant Pot Creamy Cajun Sausage Pasta"]
+    },
+    {
+      "query": "mushroom dish",
+      "relevant": ["Mushroom Rice Recipe", "Mushroom Sauce", "Duxelles (Mushrooms)", "Cheesy autumn mushrooms"]
+    }
+  ]
+}

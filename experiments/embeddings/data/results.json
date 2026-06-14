@@ -1,0 +1,1382 @@
+[
+  {
+    "query": "korean food",
+    "note": "SEMANTIC TRAP: no title contains 'korean'. Kimchi dishes should win.",
+    "results": {
+      "nl/title": {
+        "top5": [
+          "Salt Beef",
+          "Creamy Cheesy Hot Corn Dip",
+          "Egg fried rice",
+          "Instant Pot Creamy Cajun Sausage Pasta",
+          "Chickpea salad"
+        ],
+        "p@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "nl/ingredients": {
+        "top5": [
+          "Savoyard Potatoes",
+          "How to cook pork belly sous vide",
+          "Chickpea salad",
+          "Easy Gluten Free Carrot Cake (Perfectly Moist & Tender)",
+          "Tuna melt quesadilla"
+        ],
+        "p@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "nl/combined": {
+        "top5": [
+          "Savoyard Potatoes",
+          "How to cook pork belly sous vide",
+          "Chickpea salad",
+          "Easy Gluten Free Carrot Cake (Perfectly Moist & Tender)",
+          "Tuna melt quesadilla"
+        ],
+        "p@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "nomic/title": {
+        "top5": [
+          "Kimchi-Braised Chicken with Bacon",
+          "Quick Kimchi Pancakes",
+          "Staffordshire Oatcakes - Traditional English Hotcakes - Pancakes",
+          "Caribbean rice and beans",
+          "Curry"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 1.0
+      },
+      "nomic/ingredients": {
+        "top5": [
+          "Quick Kimchi Pancakes",
+          "Kimchi-Braised Chicken with Bacon",
+          "Staffordshire Oatcakes - Traditional English Hotcakes - Pancakes",
+          "Caribbean rice and beans",
+          "Galangal-Braised Pork Belly with Trout Roe"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 1.0
+      },
+      "nomic/combined": {
+        "top5": [
+          "Quick Kimchi Pancakes",
+          "Kimchi-Braised Chicken with Bacon",
+          "Staffordshire Oatcakes - Traditional English Hotcakes - Pancakes",
+          "Caribbean rice and beans",
+          "Galangal-Braised Pork Belly with Trout Roe"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 1.0
+      },
+      "mxbai/title": {
+        "top5": [
+          "Kimchi-Braised Chicken with Bacon",
+          "Quick Kimchi Pancakes",
+          "Stir Fried Spicy Pork with Steamed Eggplant",
+          "Egg fried rice",
+          "Welsh Beef Burrito and York Pudding"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 1.0
+      },
+      "mxbai/ingredients": {
+        "top5": [
+          "Kimchi-Braised Chicken with Bacon",
+          "Quick Kimchi Pancakes",
+          "Stir Fried Spicy Pork with Steamed Eggplant",
+          "Egg fried rice",
+          "Galangal-Braised Pork Belly with Trout Roe"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 1.0
+      },
+      "mxbai/combined": {
+        "top5": [
+          "Kimchi-Braised Chicken with Bacon",
+          "Quick Kimchi Pancakes",
+          "Stir Fried Spicy Pork with Steamed Eggplant",
+          "Egg fried rice",
+          "Galangal-Braised Pork Belly with Trout Roe"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 1.0
+      },
+      "minilm/title": {
+        "top5": [
+          "Egg fried rice",
+          "Caribbean rice and beans",
+          "Quick Kimchi Pancakes",
+          "Leek and cheddar bread and butter pudding",
+          "Kimchi-Braised Chicken with Bacon"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.54
+      },
+      "minilm/ingredients": {
+        "top5": [
+          "Kimchi-Braised Chicken with Bacon",
+          "Egg fried rice",
+          "Quick Kimchi Pancakes",
+          "Caribbean rice and beans",
+          "Pulled chicken & black bean chilli"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.92
+      },
+      "minilm/combined": {
+        "top5": [
+          "Kimchi-Braised Chicken with Bacon",
+          "Egg fried rice",
+          "Quick Kimchi Pancakes",
+          "Caribbean rice and beans",
+          "Pulled chicken & black bean chilli"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.92
+      }
+    }
+  },
+  {
+    "query": "something with chickpeas",
+    "note": "",
+    "results": {
+      "nl/title": {
+        "top5": [
+          "Rhubarbecue",
+          "Chickpea salad",
+          "Halloumi and Mediterranean veg traybake",
+          "Edamame Chickpea Feta Salad",
+          "Beetroot Slaw"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.36
+      },
+      "nl/ingredients": {
+        "top5": [
+          "Chickpea salad",
+          "Tuna melt quesadilla",
+          "Savoyard Potatoes",
+          "How to cook pork belly sous vide",
+          "Mary Berry's Posh Roasted Vegetables"
+        ],
+        "p@5": 0.2,
+        "ndcg@5": 0.34
+      },
+      "nl/combined": {
+        "top5": [
+          "Chickpea salad",
+          "Tuna melt quesadilla",
+          "Savoyard Potatoes",
+          "How to cook pork belly sous vide",
+          "Mary Berry's Posh Roasted Vegetables"
+        ],
+        "p@5": 0.2,
+        "ndcg@5": 0.34
+      },
+      "nomic/title": {
+        "top5": [
+          "Chickpea salad",
+          "Edamame Chickpea Feta Salad",
+          "Turkey, bacon & chorizo bombe",
+          "Pulled chicken & black bean chilli",
+          "Wild rice, cranberry and feta salad"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.55
+      },
+      "nomic/ingredients": {
+        "top5": [
+          "Chickpea salad",
+          "Edamame Chickpea Feta Salad",
+          "Wild rice, cranberry and feta salad",
+          "Protein-Packed Bean Salad",
+          "Pulled chicken & black bean chilli"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.7
+      },
+      "nomic/combined": {
+        "top5": [
+          "Chickpea salad",
+          "Edamame Chickpea Feta Salad",
+          "Wild rice, cranberry and feta salad",
+          "Protein-Packed Bean Salad",
+          "Pulled chicken & black bean chilli"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.7
+      },
+      "mxbai/title": {
+        "top5": [
+          "Chickpea salad",
+          "Edamame Chickpea Feta Salad",
+          "Halloumi and Mediterranean veg traybake",
+          "Protein-Packed Bean Salad",
+          "Mix It Up Special Balti"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.7
+      },
+      "mxbai/ingredients": {
+        "top5": [
+          "Chickpea salad",
+          "Edamame Chickpea Feta Salad",
+          "Protein-Packed Bean Salad",
+          "Mix It Up Special Balti",
+          "Mob's Smashed Cucumber and Halloumi Salad"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.72
+      },
+      "mxbai/combined": {
+        "top5": [
+          "Chickpea salad",
+          "Edamame Chickpea Feta Salad",
+          "Protein-Packed Bean Salad",
+          "Mix It Up Special Balti",
+          "Mob's Smashed Cucumber and Halloumi Salad"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.72
+      },
+      "minilm/title": {
+        "top5": [
+          "Chickpea salad",
+          "Edamame Chickpea Feta Salad",
+          "'Marry me' chicken",
+          "Chicken Pot Pie",
+          "Pulled chicken & black bean chilli"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.55
+      },
+      "minilm/ingredients": {
+        "top5": [
+          "Chickpea salad",
+          "'Marry me' chicken",
+          "Pulled chicken & black bean chilli",
+          "Edamame Chickpea Feta Salad",
+          "Spicy bean burgers with lime yogurt & salsa"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.62
+      },
+      "minilm/combined": {
+        "top5": [
+          "Chickpea salad",
+          "'Marry me' chicken",
+          "Pulled chicken & black bean chilli",
+          "Edamame Chickpea Feta Salad",
+          "Spicy bean burgers with lime yogurt & salsa"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.62
+      }
+    }
+  },
+  {
+    "query": "spicy slow-cooked beef",
+    "note": "",
+    "results": {
+      "nl/title": {
+        "top5": [
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Mary Berry's Posh Roasted Vegetables",
+          "Creamy Cheesy Hot Corn Dip",
+          "Pulled chicken & black bean chilli",
+          "Salt Beef"
+        ],
+        "p@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "nl/ingredients": {
+        "top5": [
+          "Savoyard Potatoes",
+          "How to cook pork belly sous vide",
+          "Air fryer hunter's chicken",
+          "Air fryer hunter's chicken",
+          "Chickpea salad"
+        ],
+        "p@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "nl/combined": {
+        "top5": [
+          "Savoyard Potatoes",
+          "How to cook pork belly sous vide",
+          "Air fryer hunter's chicken",
+          "Air fryer hunter's chicken",
+          "Chickpea salad"
+        ],
+        "p@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "nomic/title": {
+        "top5": [
+          "Salt Beef",
+          "Ethiopian Beef stew",
+          "Ethiopian Beef stew",
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Spicy bean burgers with lime yogurt & salsa"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.38
+      },
+      "nomic/ingredients": {
+        "top5": [
+          "Salt Beef",
+          "Crispy Beef Empanadas",
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Ragu",
+          "Ethiopian Beef stew"
+        ],
+        "p@5": 0.2,
+        "ndcg@5": 0.13
+      },
+      "nomic/combined": {
+        "top5": [
+          "Salt Beef",
+          "Crispy Beef Empanadas",
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Ragu",
+          "Ethiopian Beef stew"
+        ],
+        "p@5": 0.2,
+        "ndcg@5": 0.13
+      },
+      "mxbai/title": {
+        "top5": [
+          "Salt Beef",
+          "Beef goulash",
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Hot honey beef bowl",
+          "Ethiopian Beef stew"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.49
+      },
+      "mxbai/ingredients": {
+        "top5": [
+          "Hot honey beef bowl",
+          "Ethiopian Beef stew",
+          "Ethiopian Beef stew",
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Salt Beef"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.72
+      },
+      "mxbai/combined": {
+        "top5": [
+          "Hot honey beef bowl",
+          "Ethiopian Beef stew",
+          "Ethiopian Beef stew",
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Salt Beef"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.72
+      },
+      "minilm/title": {
+        "top5": [
+          "Crispy Beef Empanadas",
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Salt Beef",
+          "Hot honey beef bowl",
+          "Spicy bean burgers with lime yogurt & salsa"
+        ],
+        "p@5": 0.2,
+        "ndcg@5": 0.15
+      },
+      "minilm/ingredients": {
+        "top5": [
+          "Crispy Beef Empanadas",
+          "Salt Beef",
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Stir Fried Spicy Pork with Steamed Eggplant",
+          "Hot honey beef bowl"
+        ],
+        "p@5": 0.2,
+        "ndcg@5": 0.13
+      },
+      "minilm/combined": {
+        "top5": [
+          "Crispy Beef Empanadas",
+          "Salt Beef",
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Stir Fried Spicy Pork with Steamed Eggplant",
+          "Hot honey beef bowl"
+        ],
+        "p@5": 0.2,
+        "ndcg@5": 0.13
+      }
+    }
+  },
+  {
+    "query": "apple dessert",
+    "note": "",
+    "results": {
+      "nl/title": {
+        "top5": [
+          "Caramel apple cinnamon buns",
+          "Caramel apple loaf cake",
+          "Potato Leek Gratin",
+          "Mary Berry's Posh Roasted Vegetables",
+          "Salt Beef"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.55
+      },
+      "nl/ingredients": {
+        "top5": [
+          "Savoyard Potatoes",
+          "Chickpea salad",
+          "How to cook pork belly sous vide",
+          "Tuna melt quesadilla",
+          "Air fryer hunter's chicken"
+        ],
+        "p@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "nl/combined": {
+        "top5": [
+          "Savoyard Potatoes",
+          "Chickpea salad",
+          "How to cook pork belly sous vide",
+          "Tuna melt quesadilla",
+          "Air fryer hunter's chicken"
+        ],
+        "p@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "nomic/title": {
+        "top5": [
+          "Gluten free apple cake (Gluten Free Sharlotka)",
+          "Caramel apple loaf cake",
+          "Grated apple brunch pancakes with lime & brown sugar yogurt",
+          "Caramel apple cinnamon buns",
+          "Leek and cheddar bread and butter pudding"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.87
+      },
+      "nomic/ingredients": {
+        "top5": [
+          "Gluten free apple cake (Gluten Free Sharlotka)",
+          "Caramel apple loaf cake",
+          "Grated apple brunch pancakes with lime & brown sugar yogurt",
+          "Caramel apple cinnamon buns",
+          "Easy Gluten Free Carrot Cake (Perfectly Moist & Tender)"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.87
+      },
+      "nomic/combined": {
+        "top5": [
+          "Gluten free apple cake (Gluten Free Sharlotka)",
+          "Caramel apple loaf cake",
+          "Grated apple brunch pancakes with lime & brown sugar yogurt",
+          "Caramel apple cinnamon buns",
+          "Easy Gluten Free Carrot Cake (Perfectly Moist & Tender)"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.87
+      },
+      "mxbai/title": {
+        "top5": [
+          "Caramel apple loaf cake",
+          "Gluten free apple cake (Gluten Free Sharlotka)",
+          "Grated apple brunch pancakes with lime & brown sugar yogurt",
+          "Caramel apple cinnamon buns",
+          "Leek and cheddar bread and butter pudding"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.87
+      },
+      "mxbai/ingredients": {
+        "top5": [
+          "Caramel apple loaf cake",
+          "Grated apple brunch pancakes with lime & brown sugar yogurt",
+          "Gluten free apple cake (Gluten Free Sharlotka)",
+          "Caramel apple cinnamon buns",
+          "Cinnamon Sugar Donut Cones Recipe by Tasty"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.87
+      },
+      "mxbai/combined": {
+        "top5": [
+          "Caramel apple loaf cake",
+          "Grated apple brunch pancakes with lime & brown sugar yogurt",
+          "Gluten free apple cake (Gluten Free Sharlotka)",
+          "Caramel apple cinnamon buns",
+          "Cinnamon Sugar Donut Cones Recipe by Tasty"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.87
+      },
+      "minilm/title": {
+        "top5": [
+          "Caramel apple loaf cake",
+          "Gluten free apple cake (Gluten Free Sharlotka)",
+          "Grated apple brunch pancakes with lime & brown sugar yogurt",
+          "Caramel apple cinnamon buns",
+          "Chicken Pot Pie"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.87
+      },
+      "minilm/ingredients": {
+        "top5": [
+          "Gluten free apple cake (Gluten Free Sharlotka)",
+          "Grated apple brunch pancakes with lime & brown sugar yogurt",
+          "Caramel apple loaf cake",
+          "Caramel apple cinnamon buns",
+          "Mary Berry's Posh Roasted Vegetables"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.87
+      },
+      "minilm/combined": {
+        "top5": [
+          "Gluten free apple cake (Gluten Free Sharlotka)",
+          "Grated apple brunch pancakes with lime & brown sugar yogurt",
+          "Caramel apple loaf cake",
+          "Caramel apple cinnamon buns",
+          "Mary Berry's Posh Roasted Vegetables"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.87
+      }
+    }
+  },
+  {
+    "query": "quick weeknight chicken dinner",
+    "note": "",
+    "results": {
+      "nl/title": {
+        "top5": [
+          "Cheesy autumn mushrooms",
+          "Chicken Pot Pie",
+          "Potato Leek Gratin",
+          "Quick Kimchi Pancakes",
+          "Caramel apple loaf cake"
+        ],
+        "p@5": 0.2,
+        "ndcg@5": 0.21
+      },
+      "nl/ingredients": {
+        "top5": [
+          "Savoyard Potatoes",
+          "How to cook pork belly sous vide",
+          "Air fryer hunter's chicken",
+          "Air fryer hunter's chicken",
+          "Chickpea salad"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.32
+      },
+      "nl/combined": {
+        "top5": [
+          "Savoyard Potatoes",
+          "How to cook pork belly sous vide",
+          "Air fryer hunter's chicken",
+          "Air fryer hunter's chicken",
+          "Chickpea salad"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.32
+      },
+      "nomic/title": {
+        "top5": [
+          "Air fryer hunter's chicken",
+          "Air fryer hunter's chicken",
+          "Chicken, mustard and spinach cobbler",
+          "Bacon & Cheese Smothered Garlic Chicken!",
+          "Kimchi-Braised Chicken with Bacon"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.87
+      },
+      "nomic/ingredients": {
+        "top5": [
+          "Air fryer hunter's chicken",
+          "Air fryer hunter's chicken",
+          "'Marry me' chicken",
+          "Bacon & Cheese Smothered Garlic Chicken!",
+          "Pulled chicken & black bean chilli"
+        ],
+        "p@5": 1.0,
+        "ndcg@5": 1.0
+      },
+      "nomic/combined": {
+        "top5": [
+          "Air fryer hunter's chicken",
+          "Air fryer hunter's chicken",
+          "'Marry me' chicken",
+          "Bacon & Cheese Smothered Garlic Chicken!",
+          "Pulled chicken & black bean chilli"
+        ],
+        "p@5": 1.0,
+        "ndcg@5": 1.0
+      },
+      "mxbai/title": {
+        "top5": [
+          "Pulled chicken & black bean chilli",
+          "Chicken, mustard and spinach cobbler",
+          "'Marry me' chicken",
+          "Quick Kimchi Pancakes",
+          "Bacon & Cheese Smothered Garlic Chicken!"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.85
+      },
+      "mxbai/ingredients": {
+        "top5": [
+          "Air fryer hunter's chicken",
+          "Air fryer hunter's chicken",
+          "'Marry me' chicken",
+          "Pulled chicken & black bean chilli",
+          "Bacon & Cheese Smothered Garlic Chicken!"
+        ],
+        "p@5": 1.0,
+        "ndcg@5": 1.0
+      },
+      "mxbai/combined": {
+        "top5": [
+          "Air fryer hunter's chicken",
+          "Air fryer hunter's chicken",
+          "'Marry me' chicken",
+          "Pulled chicken & black bean chilli",
+          "Bacon & Cheese Smothered Garlic Chicken!"
+        ],
+        "p@5": 1.0,
+        "ndcg@5": 1.0
+      },
+      "minilm/title": {
+        "top5": [
+          "'Marry me' chicken",
+          "Bacon & Cheese Smothered Garlic Chicken!",
+          "Kimchi-Braised Chicken with Bacon",
+          "Chicken Pot Pie",
+          "Creamy Chicken Marsala"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.83
+      },
+      "minilm/ingredients": {
+        "top5": [
+          "'Marry me' chicken",
+          "Bacon & Cheese Smothered Garlic Chicken!",
+          "Creamy Chicken Marsala",
+          "Pulled chicken & black bean chilli",
+          "Air fryer hunter's chicken"
+        ],
+        "p@5": 1.0,
+        "ndcg@5": 1.0
+      },
+      "minilm/combined": {
+        "top5": [
+          "'Marry me' chicken",
+          "Bacon & Cheese Smothered Garlic Chicken!",
+          "Creamy Chicken Marsala",
+          "Pulled chicken & black bean chilli",
+          "Air fryer hunter's chicken"
+        ],
+        "p@5": 1.0,
+        "ndcg@5": 1.0
+      }
+    }
+  },
+  {
+    "query": "cheesy comfort food bake",
+    "note": "",
+    "results": {
+      "nl/title": {
+        "top5": [
+          "Creamy Cheesy Hot Corn Dip",
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Bacon & Cheese Smothered Garlic Chicken!",
+          "Caramel apple loaf cake",
+          "Cheesy autumn mushrooms"
+        ],
+        "p@5": 0.2,
+        "ndcg@5": 0.34
+      },
+      "nl/ingredients": {
+        "top5": [
+          "Savoyard Potatoes",
+          "Chickpea salad",
+          "Air fryer hunter's chicken",
+          "Air fryer hunter's chicken",
+          "How to cook pork belly sous vide"
+        ],
+        "p@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "nl/combined": {
+        "top5": [
+          "Savoyard Potatoes",
+          "Chickpea salad",
+          "Air fryer hunter's chicken",
+          "Air fryer hunter's chicken",
+          "How to cook pork belly sous vide"
+        ],
+        "p@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "nomic/title": {
+        "top5": [
+          "Cheesy Potato Pancakes Recipe (VIDEO)",
+          "Mexican tortilla bake",
+          "Mexican tortilla bake",
+          "Turkey, bacon & chorizo bombe",
+          "Caramel apple loaf cake"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.38
+      },
+      "nomic/ingredients": {
+        "top5": [
+          "Cheesy Potato Pancakes Recipe (VIDEO)",
+          "Mexican tortilla bake",
+          "Mexican tortilla bake",
+          "Turkey, bacon & chorizo bombe",
+          "Seeded cheese & chive flapjacks"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.38
+      },
+      "nomic/combined": {
+        "top5": [
+          "Cheesy Potato Pancakes Recipe (VIDEO)",
+          "Mexican tortilla bake",
+          "Mexican tortilla bake",
+          "Turkey, bacon & chorizo bombe",
+          "Seeded cheese & chive flapjacks"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.38
+      },
+      "mxbai/title": {
+        "top5": [
+          "Cheesy Zucchini Gratin! (Low Carb)",
+          "Mexican tortilla bake",
+          "Mexican tortilla bake",
+          "Creamy Cheesy Hot Corn Dip",
+          "Cheese and onion flan"
+        ],
+        "p@5": 1.0,
+        "ndcg@5": 1.0
+      },
+      "mxbai/ingredients": {
+        "top5": [
+          "Cheesy Zucchini Gratin! (Low Carb)",
+          "Cheesy autumn mushrooms",
+          "Creamy Cheesy Hot Corn Dip",
+          "Halloumi and Mediterranean veg traybake",
+          "Homemade Hamburger Helper Recipe"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.51
+      },
+      "mxbai/combined": {
+        "top5": [
+          "Cheesy Zucchini Gratin! (Low Carb)",
+          "Cheesy autumn mushrooms",
+          "Creamy Cheesy Hot Corn Dip",
+          "Halloumi and Mediterranean veg traybake",
+          "Homemade Hamburger Helper Recipe"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.51
+      },
+      "minilm/title": {
+        "top5": [
+          "Mexican tortilla bake",
+          "Mexican tortilla bake",
+          "Leek and cheddar bread and butter pudding",
+          "Cheesy Zucchini Gratin! (Low Carb)",
+          "Caramel apple loaf cake"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.87
+      },
+      "minilm/ingredients": {
+        "top5": [
+          "Leek and cheddar bread and butter pudding",
+          "Mexican tortilla bake",
+          "Mexican tortilla bake",
+          "Cheesy Zucchini Gratin! (Low Carb)",
+          "Cheesy Potato Pancakes Recipe (VIDEO)"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.87
+      },
+      "minilm/combined": {
+        "top5": [
+          "Leek and cheddar bread and butter pudding",
+          "Mexican tortilla bake",
+          "Mexican tortilla bake",
+          "Cheesy Zucchini Gratin! (Low Carb)",
+          "Cheesy Potato Pancakes Recipe (VIDEO)"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.87
+      }
+    }
+  },
+  {
+    "query": "vegetarian salad",
+    "note": "",
+    "results": {
+      "nl/title": {
+        "top5": [
+          "Chickpea salad",
+          "Wild rice, cranberry and feta salad",
+          "Mary Berry's Posh Roasted Vegetables",
+          "Mushroom Sauce",
+          "Edamame Chickpea Feta Salad"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.68
+      },
+      "nl/ingredients": {
+        "top5": [
+          "Savoyard Potatoes",
+          "Chickpea salad",
+          "How to cook pork belly sous vide",
+          "Tuna melt quesadilla",
+          "Air fryer hunter's chicken"
+        ],
+        "p@5": 0.2,
+        "ndcg@5": 0.21
+      },
+      "nl/combined": {
+        "top5": [
+          "Savoyard Potatoes",
+          "Chickpea salad",
+          "How to cook pork belly sous vide",
+          "Tuna melt quesadilla",
+          "Air fryer hunter's chicken"
+        ],
+        "p@5": 0.2,
+        "ndcg@5": 0.21
+      },
+      "nomic/title": {
+        "top5": [
+          "Chickpea salad",
+          "Edamame Chickpea Feta Salad",
+          "Protein-Packed Bean Salad",
+          "Five-Bean Salad",
+          "Halloumi and Mediterranean veg traybake"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.87
+      },
+      "nomic/ingredients": {
+        "top5": [
+          "Chickpea salad",
+          "Protein-Packed Bean Salad",
+          "Mob's Smashed Cucumber and Halloumi Salad",
+          "Halloumi and Mediterranean veg traybake",
+          "Five-Bean Salad"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.85
+      },
+      "nomic/combined": {
+        "top5": [
+          "Chickpea salad",
+          "Protein-Packed Bean Salad",
+          "Mob's Smashed Cucumber and Halloumi Salad",
+          "Halloumi and Mediterranean veg traybake",
+          "Five-Bean Salad"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.85
+      },
+      "mxbai/title": {
+        "top5": [
+          "Chickpea salad",
+          "Protein-Packed Bean Salad",
+          "Five-Bean Salad",
+          "Edamame Chickpea Feta Salad",
+          "Wild rice, cranberry and feta salad"
+        ],
+        "p@5": 1.0,
+        "ndcg@5": 1.0
+      },
+      "mxbai/ingredients": {
+        "top5": [
+          "Chickpea salad",
+          "Protein-Packed Bean Salad",
+          "Five-Bean Salad",
+          "Mob's Smashed Cucumber and Halloumi Salad",
+          "Edamame Chickpea Feta Salad"
+        ],
+        "p@5": 1.0,
+        "ndcg@5": 1.0
+      },
+      "mxbai/combined": {
+        "top5": [
+          "Chickpea salad",
+          "Protein-Packed Bean Salad",
+          "Five-Bean Salad",
+          "Mob's Smashed Cucumber and Halloumi Salad",
+          "Edamame Chickpea Feta Salad"
+        ],
+        "p@5": 1.0,
+        "ndcg@5": 1.0
+      },
+      "minilm/title": {
+        "top5": [
+          "Chickpea salad",
+          "Protein-Packed Bean Salad",
+          "Five-Bean Salad",
+          "Edamame Chickpea Feta Salad",
+          "Wild rice, cranberry and feta salad"
+        ],
+        "p@5": 1.0,
+        "ndcg@5": 1.0
+      },
+      "minilm/ingredients": {
+        "top5": [
+          "Chickpea salad",
+          "Protein-Packed Bean Salad",
+          "Mob's Smashed Cucumber and Halloumi Salad",
+          "Edamame Chickpea Feta Salad",
+          "Mary Berry's Posh Roasted Vegetables"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.87
+      },
+      "minilm/combined": {
+        "top5": [
+          "Chickpea salad",
+          "Protein-Packed Bean Salad",
+          "Mob's Smashed Cucumber and Halloumi Salad",
+          "Edamame Chickpea Feta Salad",
+          "Mary Berry's Posh Roasted Vegetables"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 0.87
+      }
+    }
+  },
+  {
+    "query": "welsh beef",
+    "note": "CROSS-LINGUAL: Welsh-language titles should surface alongside English.",
+    "results": {
+      "nl/title": {
+        "top5": [
+          "Salt Beef",
+          "Chickpea salad",
+          "Potato Leek Gratin",
+          "Savoyard Potatoes",
+          "Welsh Beef Burrito and York Pudding"
+        ],
+        "p@5": 0.2,
+        "ndcg@5": 0.15
+      },
+      "nl/ingredients": {
+        "top5": [
+          "Savoyard Potatoes",
+          "How to cook pork belly sous vide",
+          "Chickpea salad",
+          "Tuna melt quesadilla",
+          "Cheese Sauce"
+        ],
+        "p@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "nl/combined": {
+        "top5": [
+          "Savoyard Potatoes",
+          "How to cook pork belly sous vide",
+          "Chickpea salad",
+          "Tuna melt quesadilla",
+          "Cheese Sauce"
+        ],
+        "p@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "nomic/title": {
+        "top5": [
+          "Welsh Beef Burrito and York Pudding",
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Beer-braised beef cheek, pearl barley risotto, malted onions & ale sauce",
+          "Salt Beef",
+          "Galangal-Braised Pork Belly with Trout Roe"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.64
+      },
+      "nomic/ingredients": {
+        "top5": [
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Welsh Beef Burrito and York Pudding",
+          "Beer-braised beef cheek, pearl barley risotto, malted onions & ale sauce",
+          "Brisged Cig Eidion Cymru Blasus Wedi'i Coginion'n Araf",
+          "Ragu"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.8
+      },
+      "nomic/combined": {
+        "top5": [
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Welsh Beef Burrito and York Pudding",
+          "Beer-braised beef cheek, pearl barley risotto, malted onions & ale sauce",
+          "Brisged Cig Eidion Cymru Blasus Wedi'i Coginion'n Araf",
+          "Ragu"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.8
+      },
+      "mxbai/title": {
+        "top5": [
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Welsh Beef Burrito and York Pudding",
+          "Salt Beef",
+          "Beef goulash",
+          "Burrito Cig Eidion Cymru a Phwdin Efrog"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.79
+      },
+      "mxbai/ingredients": {
+        "top5": [
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Welsh Beef Burrito and York Pudding",
+          "Brisged Cig Eidion Cymru Blasus Wedi'i Coginion'n Araf",
+          "Beer-braised beef cheek, pearl barley risotto, malted onions & ale sauce",
+          "Ragu"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.83
+      },
+      "mxbai/combined": {
+        "top5": [
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Welsh Beef Burrito and York Pudding",
+          "Brisged Cig Eidion Cymru Blasus Wedi'i Coginion'n Araf",
+          "Beer-braised beef cheek, pearl barley risotto, malted onions & ale sauce",
+          "Ragu"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.83
+      },
+      "minilm/title": {
+        "top5": [
+          "Welsh Beef Burrito and York Pudding",
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Ethiopian Beef stew",
+          "Ethiopian Beef stew",
+          "Salt Beef"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.64
+      },
+      "minilm/ingredients": {
+        "top5": [
+          "Welsh Beef Burrito and York Pudding",
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Ethiopian Beef stew",
+          "Ethiopian Beef stew",
+          "Hairy Bikers' sausage casserole"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.64
+      },
+      "minilm/combined": {
+        "top5": [
+          "Welsh Beef Burrito and York Pudding",
+          "Tasty Welsh Beef Biscuit Slowly Cooked",
+          "Ethiopian Beef stew",
+          "Ethiopian Beef stew",
+          "Hairy Bikers' sausage casserole"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.64
+      }
+    }
+  },
+  {
+    "query": "seafood pasta",
+    "note": "",
+    "results": {
+      "nl/title": {
+        "top5": [
+          "Potato Leek Gratin",
+          "Instant Pot Creamy Cajun Sausage Pasta",
+          "Edamame Chickpea Feta Salad",
+          "Rhubarbecue",
+          "Mushroom Sauce"
+        ],
+        "p@5": 0.2,
+        "ndcg@5": 0.39
+      },
+      "nl/ingredients": {
+        "top5": [
+          "Savoyard Potatoes",
+          "Chickpea salad",
+          "How to cook pork belly sous vide",
+          "Tuna melt quesadilla",
+          "Cheese Sauce"
+        ],
+        "p@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "nl/combined": {
+        "top5": [
+          "Savoyard Potatoes",
+          "Chickpea salad",
+          "How to cook pork belly sous vide",
+          "Tuna melt quesadilla",
+          "Cheese Sauce"
+        ],
+        "p@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "nomic/title": {
+        "top5": [
+          "Instant Pot Creamy Cajun Sausage Pasta",
+          "Italian Beef Zucchini Boats Recipe",
+          "Galangal-Braised Pork Belly with Trout Roe",
+          "Marrow curry",
+          "Mushroom Sauce"
+        ],
+        "p@5": 0.2,
+        "ndcg@5": 0.61
+      },
+      "nomic/ingredients": {
+        "top5": [
+          "Creamy Prawn Linguine",
+          "Italian Beef Zucchini Boats Recipe",
+          "Instant Pot Creamy Cajun Sausage Pasta",
+          "Galangal-Braised Pork Belly with Trout Roe",
+          "Tuna melt quesadilla"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.92
+      },
+      "nomic/combined": {
+        "top5": [
+          "Creamy Prawn Linguine",
+          "Italian Beef Zucchini Boats Recipe",
+          "Instant Pot Creamy Cajun Sausage Pasta",
+          "Galangal-Braised Pork Belly with Trout Roe",
+          "Tuna melt quesadilla"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.92
+      },
+      "mxbai/title": {
+        "top5": [
+          "Creamy Prawn Linguine",
+          "Instant Pot Creamy Cajun Sausage Pasta",
+          "Creamy Chicken Marsala",
+          "Mushroom Sauce",
+          "Curry"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 1.0
+      },
+      "mxbai/ingredients": {
+        "top5": [
+          "Creamy Prawn Linguine",
+          "Instant Pot Creamy Cajun Sausage Pasta",
+          "Mix It Up Special Balti",
+          "Curry",
+          "Mushroom Rice Recipe"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 1.0
+      },
+      "mxbai/combined": {
+        "top5": [
+          "Creamy Prawn Linguine",
+          "Instant Pot Creamy Cajun Sausage Pasta",
+          "Mix It Up Special Balti",
+          "Curry",
+          "Mushroom Rice Recipe"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 1.0
+      },
+      "minilm/title": {
+        "top5": [
+          "Instant Pot Creamy Cajun Sausage Pasta",
+          "Mushroom Sauce",
+          "Cheese Sauce",
+          "Creamy Prawn Linguine",
+          "Italian Beef Zucchini Boats Recipe"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.88
+      },
+      "minilm/ingredients": {
+        "top5": [
+          "Creamy Prawn Linguine",
+          "Instant Pot Creamy Cajun Sausage Pasta",
+          "Italian Beef Zucchini Boats Recipe",
+          "Chicken, mustard and spinach cobbler",
+          "Tuna melt quesadilla"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 1.0
+      },
+      "minilm/combined": {
+        "top5": [
+          "Creamy Prawn Linguine",
+          "Instant Pot Creamy Cajun Sausage Pasta",
+          "Italian Beef Zucchini Boats Recipe",
+          "Chicken, mustard and spinach cobbler",
+          "Tuna melt quesadilla"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 1.0
+      }
+    }
+  },
+  {
+    "query": "mushroom dish",
+    "note": "",
+    "results": {
+      "nl/title": {
+        "top5": [
+          "Mushroom Rice Recipe",
+          "Mushroom Sauce",
+          "Chicken Pot Pie",
+          "Caramel apple loaf cake",
+          "Mary Berry's Posh Roasted Vegetables"
+        ],
+        "p@5": 0.4,
+        "ndcg@5": 0.64
+      },
+      "nl/ingredients": {
+        "top5": [
+          "Savoyard Potatoes",
+          "Chickpea salad",
+          "How to cook pork belly sous vide",
+          "Tuna melt quesadilla",
+          "Air fryer hunter's chicken"
+        ],
+        "p@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "nl/combined": {
+        "top5": [
+          "Savoyard Potatoes",
+          "Chickpea salad",
+          "How to cook pork belly sous vide",
+          "Tuna melt quesadilla",
+          "Air fryer hunter's chicken"
+        ],
+        "p@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "nomic/title": {
+        "top5": [
+          "Mushroom Sauce",
+          "Mushroom Rice Recipe",
+          "Cheesy autumn mushrooms",
+          "Duxelles (Mushrooms)",
+          "Marrow curry"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 1.0
+      },
+      "nomic/ingredients": {
+        "top5": [
+          "Mushroom Sauce",
+          "Mushroom Rice Recipe",
+          "Cheesy autumn mushrooms",
+          "Duxelles (Mushrooms)",
+          "Curry"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 1.0
+      },
+      "nomic/combined": {
+        "top5": [
+          "Mushroom Sauce",
+          "Mushroom Rice Recipe",
+          "Cheesy autumn mushrooms",
+          "Duxelles (Mushrooms)",
+          "Curry"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 1.0
+      },
+      "mxbai/title": {
+        "top5": [
+          "Mushroom Sauce",
+          "Mushroom Rice Recipe",
+          "Cheesy autumn mushrooms",
+          "Duxelles (Mushrooms)",
+          "Cheese Sauce"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 1.0
+      },
+      "mxbai/ingredients": {
+        "top5": [
+          "Cheesy autumn mushrooms",
+          "Mushroom Sauce",
+          "Mushroom Rice Recipe",
+          "Duxelles (Mushrooms)",
+          "Curry"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 1.0
+      },
+      "mxbai/combined": {
+        "top5": [
+          "Cheesy autumn mushrooms",
+          "Mushroom Sauce",
+          "Mushroom Rice Recipe",
+          "Duxelles (Mushrooms)",
+          "Curry"
+        ],
+        "p@5": 0.8,
+        "ndcg@5": 1.0
+      },
+      "minilm/title": {
+        "top5": [
+          "Mushroom Sauce",
+          "Mushroom Rice Recipe",
+          "Cheesy autumn mushrooms",
+          "Chicken Pot Pie",
+          "Instant Pot Creamy Cajun Sausage Pasta"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.83
+      },
+      "minilm/ingredients": {
+        "top5": [
+          "Mushroom Rice Recipe",
+          "Mushroom Sauce",
+          "Cheesy autumn mushrooms",
+          "Instant Pot Creamy Cajun Sausage Pasta",
+          "Rhubarbecue"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.83
+      },
+      "minilm/combined": {
+        "top5": [
+          "Mushroom Rice Recipe",
+          "Mushroom Sauce",
+          "Cheesy autumn mushrooms",
+          "Instant Pot Creamy Cajun Sausage Pasta",
+          "Rhubarbecue"
+        ],
+        "p@5": 0.6,
+        "ndcg@5": 0.83
+      }
+    }
+  }
+]
