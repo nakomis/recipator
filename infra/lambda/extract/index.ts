@@ -1,26 +1,17 @@
 import { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2 } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
-import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 import { LambdaClient, InvokeCommand, InvocationType } from '@aws-sdk/client-lambda';
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { randomUUID } from 'crypto';
 
 const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-const ssmClient = new SSMClient({});
 const lambdaClient = new LambdaClient({});
+const bedrock = new BedrockRuntimeClient({});
 
 const RECIPES_TABLE   = process.env.RECIPES_TABLE!;
-const ANTHROPIC_PARAM = process.env.ANTHROPIC_KEY_PARAM!;
+const BEDROCK_MODEL_ID = process.env.BEDROCK_MODEL_ID!; // foundation model or inference-profile ID
 const EMBED_FUNCTION  = process.env.EMBED_FUNCTION_NAME; // optional; async enrichment
-
-let cachedAnthropicKey: string | undefined;
-
-async function getAnthropicKey(): Promise<string> {
-  if (cachedAnthropicKey) return cachedAnthropicKey;
-  const res = await ssmClient.send(new GetParameterCommand({ Name: ANTHROPIC_PARAM }));
-  cachedAnthropicKey = res.Parameter!.Value!;
-  return cachedAnthropicKey;
-}
 
 function ok(body: unknown): APIGatewayProxyResultV2 {
   return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -57,10 +48,9 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
   let extracted = extractFromJSONLD(html, url.toString());
   console.log('extract:jsonld', { url: url.toString(), found: !!extracted });
 
-  // Fall back to Claude Haiku
+  // Fall back to Claude Haiku (via Bedrock)
   if (!extracted || extracted.ingredients.length === 0) {
-    const apiKey = await getAnthropicKey();
-    extracted = await extractWithClaude(html, url.toString(), apiKey);
+    extracted = await extractWithClaude(html, url.toString());
     console.log('extract:claude', { url: url.toString(), found: !!extracted });
   }
 
@@ -214,32 +204,30 @@ function parseRecipeSchema(obj: Record<string, unknown>): ExtractedRecipe | null
   return { title: name, ingredients, method };
 }
 
-// ── Claude Haiku fallback ─────────────────────────────────────────────────────
+// ── Claude Haiku fallback (Amazon Bedrock) ────────────────────────────────────
 
-async function extractWithClaude(html: string, url: string, apiKey: string): Promise<ExtractedRecipe | null> {
+async function extractWithClaude(html: string, url: string): Promise<ExtractedRecipe | null> {
   const truncated = html.length > 40_000 ? html.slice(0, 40_000) : html;
   const prompt = `Extract the recipe from this HTML. Return ONLY valid JSON: {"title":"…","ingredients":["…"],"method":["…"]}. If no recipe found, return {"error":"no recipe"}.\n\nURL: ${url}\n\nHTML:\n${truncated}`;
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2048,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
-
-  if (!res.ok) {
-    console.log('extract:claude_api_error', { url, status: res.status });
+  let raw: string;
+  try {
+    const res = await bedrock.send(new InvokeModelCommand({
+      modelId: BEDROCK_MODEL_ID,
+      contentType: 'application/json',
+      accept: 'application/json',
+      body: JSON.stringify({
+        anthropic_version: 'bedrock-2023-05-31',
+        max_tokens: 2048,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    }));
+    const data = JSON.parse(new TextDecoder().decode(res.body)) as { content?: Array<{ text?: string }> };
+    raw = data.content?.[0]?.text ?? '';
+  } catch (e) {
+    console.log('extract:claude_bedrock_error', { url, error: String(e) });
     return null;
   }
-  const data = await res.json() as { content?: Array<{ text?: string }> };
-  const raw = data.content?.[0]?.text ?? '';
   // Strip markdown code fences Claude sometimes wraps around JSON
   const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
 

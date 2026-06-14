@@ -135,13 +135,10 @@ export class ApiStack extends cdk.Stack {
       this, 'GroupMembersParam', `/recipator/${deployEnv}/group-members`,
     );
 
-    // ── Anthropic API key (placeholder; overwrite after first deploy) ─────────
-    // Deploy first, then: aws ssm put-parameter --overwrite --name /recipator/{env}/anthropic-api-key --value "sk-ant-..."
-    const anthropicKeyParam = new ssm.StringParameter(this, 'AnthropicKeyParam', {
-      parameterName: `/recipator/${deployEnv}/anthropic-api-key`,
-      stringValue: 'PLACEHOLDER',
-      description: 'Anthropic API key for recipe extraction (overwrite after deploy)',
-    });
+    // ── Bedrock model for the Claude extraction fallback ──────────────────────
+    // Cross-region inference profile (eu-west-2 → `eu.` prefix). Requires model
+    // access to be enabled for Anthropic Claude in the Bedrock console once.
+    const bedrockModelId = 'eu.anthropic.claude-haiku-4-5-20251001-v1:0';
 
     // ── Lambda shared config ──────────────────────────────────────────────────
     const runtime = lambda.Runtime.NODEJS_22_X;
@@ -188,15 +185,20 @@ export class ApiStack extends cdk.Stack {
       memorySize: 512,
       environment: {
         ...commonEnv,
-        ANTHROPIC_KEY_PARAM: anthropicKeyParam.parameterName,
+        BEDROCK_MODEL_ID: bedrockModelId,
         EMBED_FUNCTION_NAME: embedFn.functionName,
       },
       bundling,
     });
     recipesTable.grantWriteData(extractFn);
+    // Invoke Anthropic models on Bedrock, both directly and via inference profiles
+    // (the `eu.` profile fans out to the underlying foundation models in-region).
     extractFn.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['ssm:GetParameter'],
-      resources: [anthropicKeyParam.parameterArn],
+      actions: ['bedrock:InvokeModel'],
+      resources: [
+        `arn:aws:bedrock:*::foundation-model/anthropic.*`,
+        `arn:aws:bedrock:*:${this.account}:inference-profile/*`,
+      ],
     }));
     embedFn.grantInvoke(extractFn);
 

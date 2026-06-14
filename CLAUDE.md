@@ -7,7 +7,7 @@ iOS Share Extension and Chrome plugin for extracting and saving web recipes with
 - **iOS** — Swift 5.10, SwiftUI, iOS 17+, XcodeGen (`ios/project.yml`)
 - **Share Extension** — `com.apple.share-services`, receives URLs from Chrome/Safari share sheet
 - **API** — API Gateway HTTP API + Lambda (Node 22), Cognito JWT authoriser (native, no authorizer Lambda)
-- **Extraction** — schema.org/Recipe JSON-LD first; Claude Haiku (`claude-haiku-4-5-20251001`) fallback server-side
+- **Extraction** — schema.org/Recipe JSON-LD first; Claude Haiku (`claude-haiku-4-5-20251001`) fallback server-side via Amazon Bedrock (`eu.` inference profile; IAM, no API key)
 - **Storage** — DynamoDB `recipator-recipes-{env}` (userId PK, recipeId SK, TTL soft-delete)
 - **Auth** — Shared Cognito user pool (`/nakomis-infra/{env}/cognito/user-pool-id`); iOS PKCE flow
 - **Chrome extension** — planned
