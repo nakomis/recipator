@@ -35,9 +35,16 @@ final class EmbeddingModelManager: ObservableObject {
     private let fm = FileManager.default
 
     private var modelsDir: URL {
-        let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        var base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Models", isDirectory: true)
         try? fm.createDirectory(at: base, withIntermediateDirectories: true)
+        // The model is large (~640 MB) and fully re-downloadable from S3 (sha256-verified
+        // on download), so keep it out of iCloud / device backups — Apple requires
+        // re-downloadable data to be excluded. The flag on the directory covers the
+        // compiled .mlmodelc plus the transient unzip/download files inside it.
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? base.setResourceValues(values)
         return base
     }
     private func compiledURL(_ version: String) -> URL {
