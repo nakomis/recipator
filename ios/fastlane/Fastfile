@@ -29,6 +29,77 @@ platform :ios do
     )
   end
 
+  desc "Poll App Store Connect until the given build (default: this commit's) finishes processing"
+  lane :wait_processed do |options|
+    asc_key_id      = ENV["ASC_KEY_ID"]      || `security find-generic-password -s app-store-connect -a key-id      -w 2>/dev/null`.strip
+    asc_issuer_id   = ENV["ASC_ISSUER_ID"]   || `security find-generic-password -s app-store-connect -a issuer-id   -w 2>/dev/null`.strip
+    asc_key_content = ENV["ASC_KEY_CONTENT"] || `security find-generic-password -s app-store-connect -a key-content -w 2>/dev/null`.strip
+
+    api_key = app_store_connect_api_key(
+      key_id:                asc_key_id,
+      issuer_id:             asc_issuer_id,
+      key_content:           asc_key_content,
+      is_key_content_base64: true,
+    )
+
+    target = (options[:build] || `git rev-list HEAD --count`.strip).to_s
+    UI.message("Waiting for build #{target} to reach processingState=VALID on App Store Connect…")
+
+    require "spaceship"
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id:    asc_key_id,
+      issuer_id: asc_issuer_id,
+      key:       Base64.decode64(asc_key_content),
+    )
+    app = Spaceship::ConnectAPI::App.find("com.nakomis.recipator")
+
+    loop do
+      build = Spaceship::ConnectAPI.get_builds(
+        filter:   { app: app.id, version: target },
+        includes: "",
+      ).first
+      state = build&.processing_state
+      UI.message("build #{target} processingState: #{state.inspect}")
+      raise "Build #{target} processing FAILED/INVALID (#{state})" if %w[FAILED INVALID].include?(state)
+      break if state == "VALID"
+      sleep 45
+    end
+    UI.success("Build #{target} has finished processing (VALID) — ready to submit.")
+  end
+
+  desc "Attach the latest processed build to the current App Store version and submit for review"
+  lane :submit do |options|
+    asc_key_id      = ENV["ASC_KEY_ID"]      || `security find-generic-password -s app-store-connect -a key-id      -w 2>/dev/null`.strip
+    asc_issuer_id   = ENV["ASC_ISSUER_ID"]   || `security find-generic-password -s app-store-connect -a issuer-id   -w 2>/dev/null`.strip
+    asc_key_content = ENV["ASC_KEY_CONTENT"] || `security find-generic-password -s app-store-connect -a key-content -w 2>/dev/null`.strip
+
+    api_key = app_store_connect_api_key(
+      key_id:                asc_key_id,
+      issuer_id:             asc_issuer_id,
+      key_content:           asc_key_content,
+      is_key_content_base64: true,
+    )
+
+    # Attach a specific build (default: this commit's build number) to the live
+    # version record and submit for review. Metadata/screenshots untouched.
+    build_number = options[:build] || `git rev-list HEAD --count`.strip
+
+    deliver(
+      api_key:             api_key,
+      build_number:        build_number,
+      submit_for_review:   true,
+      automatic_release:   true,
+      skip_binary_upload:  true,
+      skip_metadata:       true,
+      skip_screenshots:    true,
+      force:               true,
+      precheck_include_in_app_purchases: false,
+      submission_information: {
+        add_id_info_uses_idfa: false,
+      },
+    )
+  end
+
   desc "Build and upload to TestFlight (production scheme)"
   lane :beta do
     ensure_git_status_clean
