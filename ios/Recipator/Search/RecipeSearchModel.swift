@@ -11,6 +11,10 @@ import Combine
 final class RecipeSearchModel: ObservableObject {
     @Published private(set) var modelStatus: EmbeddingModelManager.Status = .idle
     @Published private(set) var textCount: Int = 0
+    /// Bumped whenever a sync writes to the index. Views key their search task on this so an
+    /// active query re-ranks automatically once freshly-synced text/vectors land — without
+    /// the user retyping or relaunching (e.g. a recipe whose vector arrives moments after add).
+    @Published private(set) var indexVersion: Int = 0
 
     let manager = EmbeddingModelManager()
     private let store = RecipeStore.shared
@@ -44,6 +48,9 @@ final class RecipeSearchModel: ObservableObject {
             if !rows.isEmpty { try store.sync(rows) }
             if let knownRecipeIds { try store.prune(keeping: knownRecipeIds) }
             textCount = (try? store.textCount()) ?? textCount
+            // Signal any active search to re-rank against the now-updated index. Counts alone
+            // miss the case where only a vector changed (text already present), so bump always.
+            indexVersion &+= 1
         } catch {
             print("search: sync failed — \(error.localizedDescription)")
         }

@@ -158,8 +158,9 @@ struct RecipeListView: View {
             Task { await search.sync(knownRecipeIds: Set(allRecipes.map(\.recipeId))) }
             Task { await search.prepare() }
         }
-        // Debounced search: recompute ranking when the query settles.
-        .task(id: searchText) {
+        // Debounced search: recompute when the query settles, and again whenever the search
+        // index is re-synced (search.indexVersion) so freshly-synced data fills in live.
+        .task(id: "\(search.indexVersion)\u{0}\(searchText)") {
             guard isSearching else { rankedIds = nil; return }
             guard search.hasSearchCapability else { rankedIds = nil; return }
             rankedIds = nil
