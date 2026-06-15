@@ -59,6 +59,27 @@ Cognito app client. This is done in `infra/lib/api-stack.ts` (the `RecipatorClie
 `callbackUrls`). If the extension ID changes (e.g. a new `key`), update that list and
 redeploy the API stack.
 
+## Distribution — UNLISTED Chrome Web Store
+
+Mirrors the iOS app's unlisted App Store model: a normal one-click "Add to Chrome"
+install, but the listing is hidden from search/category browsing — reachable only by
+direct link. No developer mode, no sideloading.
+
+1. `bash scripts/package.sh` → builds `dist/recipator-extension.zip` (strips the dev
+   `key`; the Web Store assigns its own ID).
+2. One-time: register a Chrome Web Store developer account ($5) at
+   <https://chrome.google.com/webstore/devconsole>.
+3. Upload the zip as a new item; set **Visibility: Unlisted**.
+4. After the first upload the store assigns a permanent **extension ID**. Register that
+   ID's redirect URL — `https://<store-id>.chromiumapp.org/` — on the Cognito app client
+   in `infra/lib/api-stack.ts` and redeploy (sandbox + prod), or sign-in will fail with
+   `redirect_mismatch`.
+5. Submit for review (~1–3 days). Once approved, share the item's direct link; the
+   installer clicks **Add to Chrome** like any normal extension.
+
+To keep local unpacked dev on the *same* ID as the published item, copy the store's
+public key (Web Store dashboard → "View public key") into `manifest.json`'s `key`.
+
 ## Signing key
 
 The extension ID is derived from the public `key` in `manifest.json`. The matching
