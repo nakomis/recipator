@@ -320,7 +320,7 @@ export class ApiStack extends cdk.Stack {
       environment: {
         ...commonEnv,
         MODELS_BUCKET: modelsBucket.bucketName,
-        MODEL_MANIFEST_KEY: 'mxbai/v1/manifest.json',
+        MODEL_MANIFEST_KEY: 'bge-base/v1/manifest.json',
       },
       bundling,
       logGroup: logGroupFor('ModelFnLogs', `recipator-model-${deployEnv}`),
