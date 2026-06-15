@@ -59,6 +59,23 @@ iOS Share Extension and Chrome plugin for extracting and saving web recipes with
 - App bundle: `com.nakomis.recipator`
 - Share Extension bundle: `com.nakomis.recipator.share`
 - App Group: `group.com.nakomis.recipator`
+- App Store ID: `6780017315`
+
+## Distribution — UNLISTED App Store (private to family, non-public)
+
+Recipator is distributed via **Unlisted App Distribution**: a permanent, non-expiring
+App Store install reachable **only by direct link**, kept out of search/charts/categories.
+This is deliberate — it's a personal/family app, not a public release. (TestFlight was
+rejected because builds expire after 90 days; public listing because it must not be
+discoverable; ABM/ASM because the users are family, not a managed org.) Unlisted
+distribution requested via developer.apple.com/contact/request/unlisted-app on 2026-06-15.
+
+**Do NOT make it public.** Concretely:
+- Keep App Store version on **manual release** (never "Automatically release").
+- The fastlane `submit` lane (`submit_for_review` + `automatic_release`) is for a *public*
+  release — **don't run it** for normal distribution. Day-to-day distribution is just the
+  `beta` lane (TestFlight) for testing; the unlisted public-link install is the family path.
+- Builds still go through normal App Review once; unlisted only changes discoverability.
 
 ## Project generation
 
