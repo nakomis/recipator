@@ -6,12 +6,17 @@ import { setAccessToken } from './auth-token';
 import {
   ownerFirstName,
   request,
+  useAddShoppingItem,
+  useClearTicked,
   useConfig,
   useDeleteRecipe,
+  useDeleteShoppingItem,
   useExtract,
   useRecipe,
   useRecipes,
   useSearchCorpus,
+  useShoppingItems,
+  useUpdateShoppingItem,
 } from './client';
 
 function makeRes(
@@ -166,5 +171,56 @@ describe('useDeleteRecipe', () => {
     result.current.mutate('a');
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(fetchMock.mock.calls[0][1].method).toBe('DELETE');
+  });
+});
+
+describe('shopping hooks', () => {
+  it('useShoppingItems unwraps the items array', async () => {
+    fetchMock.mockResolvedValueOnce(makeRes({ items: [{ itemId: 'a', item: 'Milk' }] }));
+    const { result } = renderHook(() => useShoppingItems(), { wrapper: wrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual([{ itemId: 'a', item: 'Milk' }]);
+    expect(fetchMock.mock.calls[0][0]).toContain('/shopping/items');
+  });
+
+  it('useAddShoppingItem POSTs the text and returns the item', async () => {
+    fetchMock.mockResolvedValueOnce(
+      makeRes({ item: { itemId: 'x', item: 'Milk' } }, { status: 201 }),
+    );
+    const { result } = renderHook(() => useAddShoppingItem(), { wrapper: wrapper() });
+    result.current.mutate('4 pints of milk');
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain('/shopping/items');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body).text).toBe('4 pints of milk');
+  });
+
+  it('useUpdateShoppingItem PATCHes the patch', async () => {
+    fetchMock.mockResolvedValueOnce(makeRes({ item: { itemId: 'x', checked: true } }));
+    const { result } = renderHook(() => useUpdateShoppingItem(), { wrapper: wrapper() });
+    result.current.mutate({ itemId: 'x', patch: { checked: true } });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain('/shopping/items/x');
+    expect(init.method).toBe('PATCH');
+    expect(JSON.parse(init.body).checked).toBe(true);
+  });
+
+  it('useDeleteShoppingItem issues a DELETE', async () => {
+    fetchMock.mockResolvedValueOnce(makeRes('', { status: 204 }));
+    const { result } = renderHook(() => useDeleteShoppingItem(), { wrapper: wrapper() });
+    result.current.mutate('x');
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(fetchMock.mock.calls[0][0]).toContain('/shopping/items/x');
+    expect(fetchMock.mock.calls[0][1].method).toBe('DELETE');
+  });
+
+  it('useClearTicked POSTs to clear-ticked', async () => {
+    fetchMock.mockResolvedValueOnce(makeRes({ removed: 3 }));
+    const { result } = renderHook(() => useClearTicked(), { wrapper: wrapper() });
+    result.current.mutate();
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(fetchMock.mock.calls[0][0]).toContain('/shopping/clear-ticked');
   });
 });

@@ -179,3 +179,75 @@ export function useDeleteRecipe() {
     },
   });
 }
+
+// ── Shopping list (RECP-37/39) ────────────────────────────────────────────────
+
+/** A shopping-list item as returned by the /shopping API. */
+export interface ShoppingItem {
+  itemId: string;
+  listId: string;
+  raw: string;
+  item: string;
+  amount: string | null;
+  unit: string | null;
+  aisle: string;
+  checked: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const shoppingKey = ['shopping', 'items'] as const;
+
+/** GET /shopping/items — the user's shopping list (auto-creates the default list). */
+export function useShoppingItems() {
+  return useQuery({
+    queryKey: shoppingKey,
+    queryFn: () => request<{ items: ShoppingItem[] }>('/shopping/items').then((r) => r.items),
+  });
+}
+
+/** POST /shopping/items — add a free-text item (server categorises it). */
+export function useAddShoppingItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (text: string) =>
+      request<{ item: ShoppingItem }>('/shopping/items', {
+        method: 'POST',
+        body: JSON.stringify({ text }),
+      }).then((r) => r.item),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: shoppingKey }),
+  });
+}
+
+/** PATCH /shopping/items/{id} — tick/untick, edit, re-aisle. */
+export function useUpdateShoppingItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ itemId, patch }: { itemId: string; patch: Partial<ShoppingItem> }) =>
+      request<{ item: ShoppingItem }>(`/shopping/items/${itemId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }).then((r) => r.item),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: shoppingKey }),
+  });
+}
+
+/** DELETE /shopping/items/{id}. */
+export function useDeleteShoppingItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) =>
+      request<void>(`/shopping/items/${itemId}`, { method: 'DELETE' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: shoppingKey }),
+  });
+}
+
+/** POST /shopping/clear-ticked — remove all ticked items. */
+export function useClearTicked() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => request<{ removed: number }>('/shopping/clear-ticked', { method: 'POST' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: shoppingKey }),
+  });
+}
