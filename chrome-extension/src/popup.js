@@ -1,5 +1,5 @@
-// Popup UI. All privileged work (OAuth, API) happens in the background service
-// worker; the popup just sends messages and renders the results.
+// Popup UI. All privileged work (OAuth, API, import) happens in the background
+// service worker; the popup just sends messages and renders the results.
 
 const $ = (id) => document.getElementById(id);
 
@@ -32,6 +32,27 @@ async function refresh() {
   $("signed-in").hidden = !status.signedIn;
 }
 
+// ── Live progress from the importer ────────────────────────────────────────────
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg?.type !== "alexaImportProgress") return;
+  const ev = msg.event;
+  if (ev.phase === "reading") showStatus("Reading your Amazon saved recipes…");
+  else if (ev.phase === "start") showStatus(`Found ${ev.total} saved recipe${ev.total === 1 ? "" : "s"}…`);
+  else if (ev.phase === "item") {
+    const verb = { importing: "Importing", imported: "Imported", skipped: "Skipped", failed: "Couldn't get" }[ev.status] || "";
+    showStatus(`${ev.index}/${ev.total} · ${verb} “${ev.title}”`);
+  }
+});
+
+function summarise(s) {
+  const parts = [`${s.imported.length} imported`];
+  if (s.skipped.length) parts.push(`${s.skipped.length} already saved`);
+  if (s.failed.length) parts.push(`${s.failed.length} failed`);
+  let msg = parts.join(", ") + ".";
+  if (s.failed.length) msg += " Couldn't find: " + s.failed.map((f) => f.title).join(", ") + ".";
+  return msg;
+}
+
 // ── Wire up ─────────────────────────────────────────────────────────────────
 $("sign-in").addEventListener("click", async () => {
   showStatus("Opening sign-in…");
@@ -61,6 +82,25 @@ $("save").addEventListener("click", async () => {
   } else {
     showStatus(r.error || "Couldn't save this recipe.", "error");
   }
+  $("save").disabled = false;
+});
+
+$("import").addEventListener("click", async () => {
+  $("import").disabled = true;
+  $("save").disabled = true;
+  $("result").hidden = true;
+  showStatus("Reading your Amazon saved recipes…");
+  const r = await send("importAmazon");
+  if (r.ok) {
+    const s = r.summary;
+    showStatus(summarise(s), s.failed.length ? "" : "ok");
+  } else if (r.error?.toLowerCase().includes("sign in")) {
+    showStatus(r.error, "error");
+    await refresh();
+  } else {
+    showStatus(r.error || "Couldn't import from Amazon.", "error");
+  }
+  $("import").disabled = false;
   $("save").disabled = false;
 });
 

@@ -74,6 +74,14 @@ button.primary {
 }
 button.primary:hover:not(:disabled) { background: var(--accent-hover); }
 
+button.secondary {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+  font-weight: 600;
+}
+button.secondary:hover:not(:disabled) { border-color: #528bff; color: var(--heading); }
+
 button.link {
   background: none;
   border: none;
