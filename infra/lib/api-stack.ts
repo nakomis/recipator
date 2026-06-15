@@ -52,9 +52,11 @@ export class ApiStack extends cdk.Stack {
           `com.nakomis.recipator://callback`,
           'http://localhost:3000/callback',
           // Chrome extension (chrome-extension/) — chrome.identity.launchWebAuthFlow
-          // redirects to https://<extension-id>.chromiumapp.org/. The extension ID is
-          // pinned by the "key" in chrome-extension/manifest.json.
+          // redirects to https://<extension-id>.chromiumapp.org/.
+          // Dev (unpacked): ID pinned by the "key" in chrome-extension/manifest.json.
           'https://nhndabjfclafpajdlcgbkkepckdaljll.chromiumapp.org/',
+          // Published (unlisted Chrome Web Store): store-assigned ID.
+          'https://blcjeenbfhceoebinmglcokmbaleclop.chromiumapp.org/',
         ],
         logoutUrls: [
           `com.nakomis.recipator://logout`,
