@@ -93,6 +93,9 @@ platform :ios do
       skip_metadata:       true,
       skip_screenshots:    true,
       force:               true,
+      # precheck's URL check uses HEAD; nakom.is/privacy-policy answers HEAD with 405
+      # (CloudFront) but GET with 200 — a false positive that wrongly blocks submission.
+      run_precheck_before_submit:        false,
       precheck_include_in_app_purchases: false,
       submission_information: {
         add_id_info_uses_idfa: false,
