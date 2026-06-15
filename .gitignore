@@ -49,3 +49,7 @@ node_modules/
 
 # Local scripts not for version control
 ignored/
+
+# Chrome extension build output
+chrome-extension/dist/
+chrome-extension/.pkg-build/
