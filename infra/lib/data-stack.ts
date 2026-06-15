@@ -38,9 +38,9 @@ export class DataStack extends cdk.Stack {
       removalPolicy,
     });
 
-    // models: hosts the on-device embedding model (mxbai) downloaded by the app on
+    // models: hosts the on-device embedding model (bge-base) downloaded by the app on
     // first launch via a presigned URL. Private; objects keyed by version, e.g.
-    // mxbai/v1/model.mlpackage.zip plus mxbai/v1/manifest.json.
+    // bge-base/v1/model.mlpackage.zip plus bge-base/v1/manifest.json.
     this.modelsBucket = new s3.Bucket(this, 'ModelsBucket', {
       bucketName: `recipator-models-${deployEnv}`,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
