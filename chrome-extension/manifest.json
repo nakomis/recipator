@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Recipator",
+  "description": "Extract and save web recipes with AI — companion to the Recipator iOS app.",
+  "version": "1.0.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqRA7gSTjNmUipiY9ssfwHUaeqCo2LUNDw1CNo11OBiYYoYa/b1KqznpfARerIZznsSrviceaIRbHU4XJfgMVnkbzMJZlQ55HgdaDQjygutNrWAvR4Gfm91q7XIqSzSNqY47PUPjXIwO5m5lnL68B+p3ZzXn2mtMNslZOfsc/Xjby43tZIf81gv2j2z41lHX6KgRnQKZ0qN35ZJUx7FTfYF44bGef9kqZ/cj5Y4vFD6Bo3G4umUJiqgweE6c4O1X81NGa0wUBfM//dyMZLCMHmlofTdG0YCgfim623GHvS/XtiWwdEeHQVG3Akz5LVoSJuI/o2Z2kA3gQp7S+K4MqlQIDAQAB",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "Save recipe to Recipator",
+    "default_popup": "src/popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "permissions": ["identity", "activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "https://api.recipator.sandbox.nakomis.com/*",
+    "https://api.recipator.nakomis.com/*",
+    "https://login.sandbox.nakomis.com/*",
+    "https://login.nakomis.com/*"
+  ]
+}
