@@ -1,17 +1,21 @@
 import * as cdk from 'aws-cdk-lib';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 
 export interface GithubCiStackProps extends cdk.StackProps {
   deployEnv: 'sandbox' | 'prod';
   githubOidcProviderArn: string;
+  webBucket: s3.IBucket;
+  webDistribution: cloudfront.IDistribution;
 }
 
 export class GithubCiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: GithubCiStackProps) {
     super(scope, id, props);
 
-    const { deployEnv, githubOidcProviderArn } = props;
+    const { deployEnv, githubOidcProviderArn, webBucket, webDistribution } = props;
 
     const githubOidc = iam.OpenIdConnectProvider.fromOpenIdConnectProviderArn(
       this, 'GithubOidc', githubOidcProviderArn,
@@ -73,6 +77,14 @@ export class GithubCiStack extends cdk.Stack {
         }),
       },
     });
+
+    // The web deploy job syncs the built SPA to the bucket and invalidates the
+    // CloudFront cache as this role.
+    webBucket.grantReadWrite(role);
+    role.addToPolicy(new iam.PolicyStatement({
+      actions: ['cloudfront:CreateInvalidation'],
+      resources: [`arn:aws:cloudfront::${this.account}:distribution/${webDistribution.distributionId}`],
+    }));
 
     new cdk.CfnOutput(this, 'CiRoleArn', {
       value: role.roleArn,

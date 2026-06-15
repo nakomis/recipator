@@ -37,6 +37,32 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec tsc --noEmit
 
+  web:
+    name: Web — lint, type-check, test, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CHECKOUT_REF }}
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      # Build with the committed placeholder config — just proves it bundles.
+      # The deploy jobs rebuild after injecting the real per-env config.
+      - run: pnpm build
+
   synth:
     name: CDK synth (sandbox)
     runs-on: ubuntu-latest
@@ -131,10 +157,96 @@ jobs:
           aws-region: eu-west-2
       - run: pnpm run ci-deploy-prod
 
+  deploy-web-sandbox:
+    name: Deploy web — sandbox
+    runs-on: ubuntu-latest
+    needs: [web, deploy-sandbox]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    environment: sandbox
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CHECKOUT_REF }}
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Configure AWS credentials (sandbox)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_SANDBOX_ROLE_ARN }}
+          aws-region: eu-west-2
+      - name: Inject sandbox config
+        run: bash scripts/set-config.sh sandbox
+      - name: Build
+        run: pnpm build
+      - name: Deploy to S3
+        run: |
+          BUCKET=$(aws ssm get-parameter --name /recipator/sandbox/web/bucket-name --query Parameter.Value --output text)
+          aws s3 sync dist/ "s3://$BUCKET" --delete
+      - name: Invalidate CloudFront
+        run: |
+          DIST_ID=$(aws ssm get-parameter --name /recipator/sandbox/web/distribution-id --query Parameter.Value --output text)
+          aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
+
+  deploy-web-prod:
+    name: Deploy web — production
+    runs-on: ubuntu-latest
+    needs: [deploy-web-sandbox, deploy-prod]
+    if: github.event_name == 'push'
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CHECKOUT_REF }}
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Configure AWS credentials (production)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PROD_ROLE_ARN }}
+          aws-region: eu-west-2
+      - name: Inject production config
+        run: bash scripts/set-config.sh prod
+      - name: Build
+        run: pnpm build
+      - name: Deploy to S3
+        run: |
+          BUCKET=$(aws ssm get-parameter --name /recipator/prod/web/bucket-name --query Parameter.Value --output text)
+          aws s3 sync dist/ "s3://$BUCKET" --delete
+      - name: Invalidate CloudFront
+        run: |
+          DIST_ID=$(aws ssm get-parameter --name /recipator/prod/web/distribution-id --query Parameter.Value --output text)
+          aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
+
   ci-status:
     name: CI Status
     runs-on: ubuntu-latest
-    needs: [infra, synth, deploy-sandbox, deploy-prod]
+    needs: [infra, synth, deploy-sandbox, deploy-prod, web, deploy-web-sandbox, deploy-web-prod]
     if: always()
     steps:
       - name: Check all jobs passed

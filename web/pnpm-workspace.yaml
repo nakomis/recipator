@@ -1,0 +1,21 @@
+# pnpm settings for the web package. Not a real workspace (single package) —
+# this file exists only to hold pnpm's supply-chain settings.
+
+# pnpm does NOT run dependency build/postinstall scripts unless explicitly
+# allowed here (secure default). msw is a transitive test-tooling dependency we
+# don't use at runtime, so its build script stays off.
+allowBuilds:
+  msw: false
+
+# minimumReleaseAge: refuse to resolve a version published less than this many
+# minutes ago — a defence against installing a package in the window just after
+# it's been compromised/republished. 1440 = 24h.
+# CI installs with --frozen-lockfile, so this only affects local dependency
+# updates, never reproducible installs.
+minimumReleaseAge: 1440
+
+# Versions we deliberately accept despite being newer than the threshold above.
+# pnpm appends to this automatically when you pin a fresh release.
+minimumReleaseAgeExclude:
+  - '@tanstack/react-router@1.170.11'
+  - '@tanstack/router-core@1.171.9'
