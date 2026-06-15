@@ -1,4 +1,4 @@
-# Python container Lambda that embeds a recipe with mxbai-embed-large-v1.
+# Python container Lambda that embeds a recipe with BAAI/bge-base-en-v1.5.
 # The model is baked into the image at build time so cold starts don't hit the network.
 #
 # Python 3.13 (not 3.11): the current scientific stack (numpy 2.4, scikit-learn 1.9,
@@ -29,7 +29,7 @@ RUN pip install --no-cache-dir torch==2.7.1 --index-url https://download.pytorch
 # ships pytorch_model.bin (duplicate weights), onnx/, openvino/ and TF formats — ~5GB
 # of dead weight that would push the image over Lambda's 10GB limit.
 RUN python -c "from huggingface_hub import snapshot_download; \
-snapshot_download('mixedbread-ai/mxbai-embed-large-v1', \
+snapshot_download('BAAI/bge-base-en-v1.5', \
 ignore_patterns=['*.bin','pytorch_model*','onnx/*','*.onnx','openvino/*','*.h5','tf_model*','*.msgpack','*.ot','rust_model*'])"
 
 # Runtime runs fully offline: the model is already baked into HF_HOME above, and the

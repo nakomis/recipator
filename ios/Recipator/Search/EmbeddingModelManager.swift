@@ -24,6 +24,10 @@ final class EmbeddingModelManager: ObservableObject {
 
     private(set) var embedder: CoreMLEmbedder?
     private(set) var queryPrefix: String = ""
+    /// The active model version (e.g. "bge-base-v1"), set once the model is loaded.
+    /// Matches the `embeddingModel` tag stored with each server-computed vector, so
+    /// search only compares vectors from the SAME model — see RecipeStore.embeddings.
+    private(set) var version: String?
     var isReady: Bool { if case .ready = status { return true }; return false }
 
     private let tokenizer = BertTokenizer()
@@ -112,8 +116,24 @@ final class EmbeddingModelManager: ObservableObject {
         let warmed = await Task.detached(priority: .userInitiated) { embedder.embed("warm up") != nil }.value
         guard warmed else { return false }
         self.embedder = embedder
+        self.version = version
         status = .ready
+        // Reclaim space: drop any previous model's compiled artefact + stray temp files.
+        // After a model switch the old (e.g. 640 MB mxbai) .mlmodelc would otherwise linger.
+        pruneOldModels(keeping: version)
         return true
+    }
+
+    /// Delete compiled models other than `version`, plus any leftover download/unzip temps.
+    private func pruneOldModels(keeping version: String) {
+        let keep = "\(version).mlmodelc"
+        guard let items = try? fm.contentsOfDirectory(at: modelsDir, includingPropertiesForKeys: nil) else { return }
+        for item in items where item.lastPathComponent != keep {
+            let name = item.lastPathComponent
+            if item.pathExtension == "mlmodelc" || name.hasPrefix("download-") || name.hasPrefix("unzip-") {
+                try? fm.removeItem(at: item)
+            }
+        }
     }
 
     private func locatePackage(in dir: URL) -> URL? {

@@ -1,5 +1,5 @@
 // RecipeStore.swift — local GRDB store backing on-device search:
-//   • recipeEmbedding: mxbai vectors for semantic search (when computed)
+//   • recipeEmbedding: embedding vectors for semantic search (when computed)
 //   • recipeFTS:       FTS5 index over title/ingredients/method for keyword search
 // Both are synced from the API in the background; search works on whatever's present.
 import Foundation
@@ -87,9 +87,14 @@ final class RecipeStore {
 
     // MARK: - Read
 
-    func embeddings(restrictedTo ids: Set<String>? = nil) throws -> [StoredEmbedding] {
+    /// Stored vectors for the given model tag only. Filtering by model is what makes a
+    /// model switch safe: vectors from a previous model (different space/dimension) are
+    /// never compared against the current query embedding — they're simply ignored until
+    /// the background re-sync overwrites them with the new model's vectors.
+    func embeddings(model: String, restrictedTo ids: Set<String>? = nil) throws -> [StoredEmbedding] {
         try dbQueue.read { db in
-            try Row.fetchAll(db, sql: "SELECT recipeId, vector FROM recipeEmbedding").compactMap { row in
+            try Row.fetchAll(db, sql: "SELECT recipeId, vector FROM recipeEmbedding WHERE model = ?",
+                             arguments: [model]).compactMap { row in
                 let id: String = row["recipeId"]
                 if let ids, !ids.contains(id) { return nil }
                 let data: Data = row["vector"]

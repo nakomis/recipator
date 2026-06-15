@@ -1,4 +1,4 @@
-// CoreMLEmbedder.swift — runs the downloaded mxbai CoreML model to embed text.
+// CoreMLEmbedder.swift — runs the downloaded CoreML embedding model to embed text.
 import Foundation
 import CoreML
 
@@ -55,11 +55,13 @@ final class CoreMLEmbedder {
 
 enum Cosine {
     /// Both vectors are L2-normalised, so cosine similarity == dot product.
+    /// Mismatched dimensions (e.g. a stale vector from a previous model that slipped the
+    /// model-tag filter) score 0 rather than a meaningless truncated dot product.
     static func similarity(_ a: [Float], _ b: [Float]) -> Float {
-        let n = min(a.count, b.count)
+        guard a.count == b.count else { return 0 }
         var dot: Float = 0
         var i = 0
-        while i < n { dot += a[i] * b[i]; i += 1 }
+        while i < a.count { dot += a[i] * b[i]; i += 1 }
         return dot
     }
 }

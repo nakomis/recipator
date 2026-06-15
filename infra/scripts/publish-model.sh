@@ -10,13 +10,13 @@
 set -euo pipefail
 
 ENV="${1:?usage: publish-model.sh <sandbox|prod>}"
-VERSION="mxbai-v1"
-PREFIX_KEY="mxbai/v1"
+VERSION="bge-base-v1"
+PREFIX_KEY="bge-base/v1"
 BUCKET="recipator-models-${ENV}"
 REGION="eu-west-2"
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-PKG="${ROOT}/experiments/coreml/out/mxbai.mlpackage"
+PKG="${ROOT}/experiments/coreml/out/bge-base.mlpackage"
 QUERY_PREFIX="Represent this sentence for searching relevant passages: "
 
 [ -d "$PKG" ] || { echo "❌ model not found at $PKG — run experiments/coreml/convert.py first"; exit 1; }
@@ -38,7 +38,7 @@ cat > "${TMP}/manifest.json" <<JSON
   "version": "${VERSION}",
   "artifactKey": "${ARTIFACT_KEY}",
   "sha256": "${SHA}",
-  "dim": 1024,
+  "dim": 768,
   "queryPrefix": "${QUERY_PREFIX}"
 }
 JSON
