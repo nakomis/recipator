@@ -1,9 +1,9 @@
 import { type ReactNode, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
-import AddRecipe from '@/components/AddRecipe';
 import AppHeader from '@/components/AppHeader';
 import Footer from '@/components/Footer';
 import RecipeBrowser from '@/components/RecipeBrowser';
+import SearchBar from '@/components/SearchBar';
 import SignInScreen from '@/components/SignInScreen';
 import { Spinner } from '@/components/ui/spinner';
 import { signOut } from '@/lib/auth';
@@ -38,9 +38,9 @@ function Home() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <AppHeader query={query} onQueryChange={setQuery} onSignOut={() => signOut(auth)} />
+      <AppHeader onSignOut={() => signOut(auth)} />
       <main className="mx-auto w-full max-w-5xl flex-1 p-6">
-        <AddRecipe />
+        <SearchBar query={query} onQueryChange={setQuery} />
         <RecipeBrowser query={query} />
       </main>
       <Footer />

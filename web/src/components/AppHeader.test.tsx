@@ -9,16 +9,9 @@ vi.mock('@tanstack/react-router', () => ({
 }));
 
 describe('AppHeader', () => {
-  it('forwards typed text to onQueryChange', async () => {
-    const onQueryChange = vi.fn();
-    render(<AppHeader query="" onQueryChange={onQueryChange} onSignOut={vi.fn()} />);
-    await userEvent.type(screen.getByLabelText('Search recipes'), 'a');
-    expect(onQueryChange).toHaveBeenCalledWith('a');
-  });
-
   it('calls onSignOut', async () => {
     const onSignOut = vi.fn();
-    render(<AppHeader query="" onQueryChange={vi.fn()} onSignOut={onSignOut} />);
+    render(<AppHeader onSignOut={onSignOut} />);
     await userEvent.click(screen.getByRole('button', { name: /sign out/i }));
     expect(onSignOut).toHaveBeenCalledOnce();
   });

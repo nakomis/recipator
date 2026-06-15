@@ -6,7 +6,7 @@ import Home from './Home';
 vi.mock('react-oidc-context', () => ({ useAuth: vi.fn() }));
 vi.mock('@/lib/auth', () => ({ signOut: vi.fn() }));
 vi.mock('@/components/AppHeader', () => ({ default: () => <div data-testid="header" /> }));
-vi.mock('@/components/AddRecipe', () => ({ default: () => <div data-testid="add" /> }));
+vi.mock('@/components/SearchBar', () => ({ default: () => <div data-testid="search" /> }));
 vi.mock('@/components/RecipeBrowser', () => ({ default: () => <div data-testid="browser" /> }));
 vi.mock('@/components/Footer', () => ({ default: () => <div data-testid="footer" /> }));
 vi.mock('@/components/SignInScreen', () => ({
