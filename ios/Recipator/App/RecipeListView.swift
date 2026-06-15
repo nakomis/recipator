@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 private let everyoneTag = "__everyone__"
 
@@ -397,6 +398,10 @@ struct RecipeDetailView: View {
                     ShareLink(item: recipe.markdown)
                 }
             }
+            // Keep the screen awake while a recipe is open (you're cooking from it,
+            // hands busy) — but only here, not on the list. Reset on dismiss.
+            .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
+            .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
         }
     }
 
