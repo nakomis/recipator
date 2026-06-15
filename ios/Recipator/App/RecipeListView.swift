@@ -125,9 +125,11 @@ struct RecipeListView: View {
                     }
                 }
                 ToolbarItem(placement: .bottomBar) {
-                    Text("v\(Bundle.main.appVersion)")
+                    Text(Bundle.main.versionLabel)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .fixedSize()   // keep on one line; let the glass button widen to fit
                 }
 
                 ToolbarItem(placement: .primaryAction) {
@@ -159,8 +161,9 @@ struct RecipeListView: View {
             Task { await search.sync(knownRecipeIds: Set(allRecipes.map(\.recipeId))) }
             Task { await search.prepare() }
         }
-        // Debounced search: recompute ranking when the query settles.
-        .task(id: searchText) {
+        // Debounced search: recompute when the query settles, and again whenever the search
+        // index is re-synced (search.indexVersion) so freshly-synced data fills in live.
+        .task(id: "\(search.indexVersion)\u{0}\(searchText)") {
             guard isSearching else { rankedIds = nil; return }
             guard search.hasSearchCapability else { rankedIds = nil; return }
             rankedIds = nil
@@ -171,7 +174,12 @@ struct RecipeListView: View {
             if !Task.isCancelled { rankedIds = result }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-            Task { await fetch() }
+            // Re-fetch the list AND re-sync the search index — a recipe added via the share
+            // extension while backgrounded must become searchable without a cold relaunch.
+            Task {
+                await fetch()
+                await search.sync(knownRecipeIds: Set(allRecipes.map(\.recipeId)))
+            }
         }
     }
 

@@ -17,7 +17,7 @@ struct SignInView: View {
             VStack(spacing: 4) {
                 Text("Recipator")
                     .font(.largeTitle.bold())
-                Text("v\(Bundle.main.appVersion)")
+                Text(Bundle.main.versionLabel)
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                 Text("Save recipes from anywhere.")
