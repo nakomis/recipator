@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>Recipator</title>
+  </head>
+  <body>
+    <header>
+      <img src="../icons/icon-48.png" alt="" width="28" height="28" />
+      <h1>Recipator</h1>
+      <span id="env-badge" class="badge" title="Click to switch environment"></span>
+    </header>
+
+    <main>
+      <!-- Signed-out -->
+      <section id="signed-out" hidden>
+        <p class="muted">Sign in to save recipes from the page you're viewing.</p>
+        <button id="sign-in" class="primary">Sign in</button>
+      </section>
+
+      <!-- Signed-in -->
+      <section id="signed-in" hidden>
+        <button id="save" class="primary">Save this recipe</button>
+        <button id="sign-out" class="link">Sign out</button>
+      </section>
+
+      <!-- Status / result -->
+      <p id="status" class="status" hidden></p>
+      <div id="result" class="result" hidden>
+        <h2 id="result-title"></h2>
+        <p id="result-meta" class="muted"></p>
+      </div>
+    </main>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
