@@ -4,32 +4,10 @@
 // host_permissions can fetch the API cross-origin without CORS, so the API Gateway
 // CORS allow-list (app domain + localhost only) doesn't need a chrome-extension origin.
 
-import { accessToken, signIn, clearTokens, isSignedIn } from "./auth.js";
-import { getConfig, getEnvName, setEnvName } from "./config.js";
-
-// ── API ───────────────────────────────────────────────────────────────────────
-async function apiFetch(path, init = {}) {
-  const cfg = await getConfig();
-  const token = await accessToken();
-  const res = await fetch(`${cfg.apiBaseURL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...(init.headers ?? {}),
-    },
-  });
-  const text = await res.text();
-  let body;
-  try { body = text ? JSON.parse(text) : {}; } catch { body = { error: text }; }
-  if (!res.ok) {
-    const msg = body?.error || `Request failed (${res.status})`;
-    const e = new Error(msg);
-    e.status = res.status;
-    throw e;
-  }
-  return body;
-}
+import { signIn, clearTokens, isSignedIn } from "./auth.js";
+import { getEnvName, setEnvName } from "./config.js";
+import { extract, setRecipeImage } from "./api.js";
+import { importFromAmazon, markResolved } from "./alexa-import.js";
 
 // Grab the active tab's rendered HTML + URL. The page is already loaded in the real
 // browser, so this sails past Cloudflare/bot protection that blocks server fetches —
@@ -49,7 +27,14 @@ async function capturePage() {
 
 async function saveRecipe() {
   const { url, html } = await capturePage();
-  return apiFetch("/extract", { method: "POST", body: JSON.stringify({ url, html }) });
+  const recipe = await extract({ url, html });
+  // /extract returns imageCandidates but doesn't persist one — pick the first
+  // (og:image), matching the iOS app's behaviour. Best-effort.
+  const imageUrl = recipe?.imageCandidates?.[0];
+  if (recipe?.recipeId && imageUrl) {
+    try { await setRecipeImage(recipe.recipeId, imageUrl); } catch { /* image is best-effort */ }
+  }
+  return recipe;
 }
 
 // ── Message router (from popup) ────────────────────────────────────────────────
@@ -74,6 +59,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           break;
         case "saveRecipe":
           sendResponse({ ok: true, recipe: await saveRecipe() });
+          break;
+        case "importAmazon": {
+          // Stream progress to the popup (best-effort; the popup may have closed).
+          const onProgress = (event) =>
+            chrome.runtime.sendMessage({ type: "alexaImportProgress", event }).catch(() => {});
+          const summary = await importFromAmazon(onProgress);
+          sendResponse({ ok: true, summary });
+          break;
+        }
+        case "markResolved":
+          await markResolved(msg.recipeId);
+          sendResponse({ ok: true });
           break;
         default:
           sendResponse({ ok: false, error: `Unknown message: ${msg.type}` });

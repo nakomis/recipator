@@ -19,6 +19,27 @@ API calls are made from the **background service worker**, where an MV3 extensio
 `host_permissions` can fetch cross-origin without CORS — so the API Gateway CORS
 allow-list doesn't need a `chrome-extension://` origin.
 
+## Import Echo Show ("Alexa, save this recipe") recipes
+
+Recipes you save on an Echo Show with the native **"Alexa, save this recipe"** land in
+Amazon's "Saved recipes" widget. An Alexa skill can't read the device screen (skills are
+sandboxed), but the saves live on a page you're logged into — so the **Import from
+Amazon** button (always available when signed in) does it without any skill:
+
+1. The service worker fetches Amazon's `savedrecipeswidget` endpoint with your session
+   cookies (`credentials: 'include'`), discovering the `almBrandId` from the saves page so
+   it works for any Amazon Fresh partner brand. It pages through all saved recipes.
+2. Each tile's `recipeId` encodes the provider (e.g. `bbcgoodfood`) and the title comes
+   from the tile. We map that to the original source URL — for BBC Good Food, a confirmed
+   slug rule (`&`/punctuation drop, accents → ASCII): *"Rhubarb & ginger crème brûlée"* →
+   `bbcgoodfood.com/recipes/rhubarb-ginger-creme-brulee`.
+3. The worker fetches that source page **from your residential IP** (past Cloudflare) and
+   runs it through the same `/extract`. Slug misses fall back to BBC Good Food's on-site
+   search; anything still unresolved is reported, never silently dropped.
+
+**Idempotent:** skips recipes already in Recipator (dedup by URL via `GET /recipes`) and
+caches imported Amazon `recipeId`s locally — re-running only imports what's new.
+
 ## Architecture
 
 ```
@@ -32,7 +53,9 @@ popup.html/js  ──messages──▶  background.js (service worker)
 | `manifest.json` | MV3 manifest; pins the extension ID via `key` |
 | `src/config.js` | Per-environment API/Cognito config (sandbox + production) |
 | `src/auth.js` | Cognito PKCE sign-in, token storage + silent refresh |
+| `src/api.js` | Shared Recipator API helper (`apiFetch`, `extract`) |
 | `src/background.js` | Service worker: message router, page capture, API calls |
+| `src/alexa-import.js` | Import Echo Show saved recipes from Amazon → `/extract` |
 | `src/popup.{html,css,js}` | Popup UI |
 
 ## Load it (unpacked, for development)

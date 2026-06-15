@@ -74,6 +74,14 @@ button.primary {
 }
 button.primary:hover:not(:disabled) { background: var(--accent-hover); }
 
+button.secondary {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+  font-weight: 600;
+}
+button.secondary:hover:not(:disabled) { border-color: #528bff; color: var(--heading); }
+
 button.link {
   background: none;
   border: none;
@@ -91,3 +99,10 @@ section { display: flex; flex-direction: column; gap: 10px; }
 
 .result { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
 .result h2 { margin: 0 0 4px; font-size: 14px; color: var(--heading); }
+
+.links p { font-size: 13px; }
+.links ul { margin: 6px 0 0; padding-left: 0; list-style: none; }
+.links li { margin: 4px 0; display: flex; align-items: baseline; gap: 8px; }
+.links input[type="checkbox"] { flex: none; align-self: center; cursor: pointer; }
+.links a { color: #61afef; text-decoration: none; }
+.links a:hover { text-decoration: underline; }
