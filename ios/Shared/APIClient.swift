@@ -63,6 +63,40 @@ struct RecipeDetail: Codable, Identifiable {
     var id: String { recipeId }
 }
 
+/// A shopping-list item (RECP-37). The server categorises raw text into a structured
+/// item + aisle; quantity is parsed in code. `quantityLabel`/`displayLabel` mirror the
+/// web app's formatting (RECP-40).
+struct ShoppingItem: Codable, Identifiable {
+    let itemId: String
+    let listId: String
+    let raw: String
+    let item: String
+    let amount: String?
+    let unit: String?
+    let aisle: String
+    let checked: Bool
+    let sortOrder: Int
+    let createdAt: String
+    let updatedAt: String
+    var id: String { itemId }
+
+    private static let tightUnits: Set<String> = ["g", "kg", "mg", "ml", "cl", "l"]
+
+    /// "200ml", "4 pt", "1/2 cup", "x2", "4" — or nil when there's no quantity.
+    var quantityLabel: String? {
+        guard let amount, !amount.isEmpty else { return nil }
+        guard let unit, !unit.isEmpty else { return amount }
+        if unit == "x" { return "x\(amount)" }
+        return ShoppingItem.tightUnits.contains(unit) ? "\(amount)\(unit)" : "\(amount) \(unit)"
+    }
+
+    /// "Item (quantity)" or just "Item".
+    var displayLabel: String {
+        if let q = quantityLabel { return "\(item) (\(q))" }
+        return item
+    }
+}
+
 // MARK: - Errors
 
 enum APIError: LocalizedError {
@@ -174,5 +208,50 @@ final class APIClient {
     func reportFailure(url: String, errorType: String, htmlSnippet: String? = nil) async throws {
         struct Body: Encodable { let url: String; let errorType: String; let htmlSnippet: String? }
         _ = try await request("/failures", method: "POST", body: Body(url: url, errorType: errorType, htmlSnippet: htmlSnippet))
+    }
+
+    // MARK: - Shopping list (RECP-37)
+
+    func listShoppingItems() async throws -> [ShoppingItem] {
+        let data = try await request("/shopping/items")
+        struct Response: Decodable { let items: [ShoppingItem] }
+        return (try? JSONDecoder().decode(Response.self, from: data))?.items ?? []
+    }
+
+    /// Add a free-text item; the server categorises it (item + aisle) and returns it.
+    func addShoppingItem(text: String) async throws -> ShoppingItem {
+        struct Body: Encodable { let text: String }
+        let data = try await request("/shopping/items", method: "POST", body: Body(text: text))
+        struct Response: Decodable { let item: ShoppingItem }
+        guard let item = (try? JSONDecoder().decode(Response.self, from: data))?.item else {
+            throw APIError.server(0, "Decoding failed")
+        }
+        return item
+    }
+
+    /// Patch an item. nil fields are omitted (Swift encodes optionals with encodeIfPresent),
+    /// so only the supplied fields change.
+    @discardableResult
+    func updateShoppingItem(
+        id: String, checked: Bool? = nil, item: String? = nil, aisle: String? = nil
+    ) async throws -> ShoppingItem {
+        struct Body: Encodable { let checked: Bool?; let item: String?; let aisle: String? }
+        let data = try await request(
+            "/shopping/items/\(id)", method: "PATCH",
+            body: Body(checked: checked, item: item, aisle: aisle)
+        )
+        struct Response: Decodable { let item: ShoppingItem }
+        guard let updated = (try? JSONDecoder().decode(Response.self, from: data))?.item else {
+            throw APIError.server(0, "Decoding failed")
+        }
+        return updated
+    }
+
+    func deleteShoppingItem(id: String) async throws {
+        _ = try await request("/shopping/items/\(id)", method: "DELETE")
+    }
+
+    func clearTickedShoppingItems() async throws {
+        _ = try await request("/shopping/clear-ticked", method: "POST")
     }
 }

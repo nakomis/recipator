@@ -13,7 +13,7 @@ struct RecipatorApp: App {
         WindowGroup {
             Group {
                 if auth.isSignedIn {
-                    RecipeListView()
+                    MainTabView()
                 } else {
                     SignInView()
                 }
