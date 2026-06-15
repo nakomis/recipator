@@ -26,13 +26,14 @@ export interface ApiStackProps extends cdk.StackProps {
   certificate: acm.ICertificate;
   zone: route53.IHostedZone;
   appDomain: string;
+  webDomain: string;
 }
 
 export class ApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
-    const { deployEnv, recipesTable, failuresTable, modelsBucket, certificate, zone, appDomain } = props;
+    const { deployEnv, recipesTable, failuresTable, modelsBucket, certificate, zone, appDomain, webDomain } = props;
 
     // ── Shared Cognito user pool ──────────────────────────────────────────────
     const userPoolId = ssm.StringParameter.valueForStringParameter(
@@ -57,10 +58,14 @@ export class ApiStack extends cdk.Stack {
           'https://nhndabjfclafpajdlcgbkkepckdaljll.chromiumapp.org/',
           // Published (unlisted Chrome Web Store): store-assigned ID.
           'https://blcjeenbfhceoebinmglcokmbaleclop.chromiumapp.org/',
+          // Web SPA (web/) — react-oidc-context auth-code/PKCE.
+          `https://${webDomain}/loggedin`,
+          'http://localhost:3000/loggedin',
         ],
         logoutUrls: [
           `com.nakomis.recipator://logout`,
           'http://localhost:3000/logout',
+          `https://${webDomain}/logout`,
         ],
       },
     });
@@ -368,7 +373,7 @@ export class ApiStack extends cdk.Stack {
       defaultAuthorizer: authorizer,
       defaultDomainMapping: { domainName },
       corsPreflight: {
-        allowOrigins: [`https://${appDomain}`, 'http://localhost:3000'],
+        allowOrigins: [`https://${appDomain}`, `https://${webDomain}`, 'http://localhost:3000'],
         allowMethods: [
           apigwv2.CorsHttpMethod.GET,
           apigwv2.CorsHttpMethod.POST,

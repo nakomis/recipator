@@ -1,0 +1,17 @@
+{
+  "env": "<ENV>",
+  "aws": {
+    "region": "<REGION>"
+  },
+  "cognito": {
+    "authority": "<AUTHORITY>",
+    "userPoolId": "<USER_POOL_ID>",
+    "userPoolClientId": "<USER_POOL_CLIENT_ID>",
+    "cognitoDomain": "<COGNITO_DOMAIN>",
+    "redirectUri": "<REDIRECT_URI>",
+    "logoutUri": "<LOGOUT_URI>"
+  },
+  "api": {
+    "apiUrl": "<API_URL>"
+  }
+}

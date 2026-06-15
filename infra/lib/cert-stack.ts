@@ -17,6 +17,7 @@ export class CertStack extends cdk.Stack {
   readonly certificate: acm.Certificate;
   readonly zone: route53.IHostedZone;
   readonly appDomain: string;
+  readonly webDomain: string;
 
   constructor(scope: Construct, id: string, props: CertStackProps) {
     super(scope, id, props);
@@ -24,8 +25,9 @@ export class CertStack extends cdk.Stack {
     const { deployEnv } = props;
     const { hostedZoneId, zoneName } = HOSTED_ZONES[deployEnv];
 
-    // api.recipator.{zoneName} — leaves recipator.{zoneName} free for a future web frontend.
+    // api.recipator.{zoneName} — the web SPA lives at the bare recipator.{zoneName}.
     this.appDomain = `api.recipator.${zoneName}`;
+    this.webDomain = `recipator.${zoneName}`;
 
     this.zone = route53.HostedZone.fromHostedZoneAttributes(this, 'Zone', {
       hostedZoneId,

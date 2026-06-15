@@ -3,6 +3,8 @@ import * as cdk from 'aws-cdk-lib';
 import { CertStack } from '../lib/cert-stack';
 import { DataStack } from '../lib/data-stack';
 import { ApiStack } from '../lib/api-stack';
+import { WebCertStack } from '../lib/web-cert-stack';
+import { WebStack } from '../lib/web-stack';
 import { GithubCiStack } from '../lib/github-ci-stack';
 
 const npmEnvironment = process.env.NPM_ENVIRONMENT;
@@ -46,15 +48,34 @@ const apiStack = new ApiStack(app, 'RecipatorApiStack', {
   certificate: certStack.certificate,
   zone: certStack.zone,
   appDomain: certStack.appDomain,
+  webDomain: certStack.webDomain,
   description: `Recipator API Gateway, Lambda functions, and Cognito client (${deployEnv})`,
 });
 apiStack.addDependency(certStack);
 apiStack.addDependency(dataStack);
 
+// CloudFront needs a us-east-1 certificate; the SPA hosting lives in eu-west-2.
+const webCertStack = new WebCertStack(app, 'RecipatorWebCertStack', {
+  env: { account: accountId, region: 'us-east-1' },
+  deployEnv,
+  crossRegionReferences: true,
+  description: `ACM certificate for recipator.${isProd ? 'nakomis.com' : 'sandbox.nakomis.com'} (us-east-1 for CloudFront)`,
+});
+
+const webStack = new WebStack(app, 'RecipatorWebStack', {
+  ...londonEnv,
+  deployEnv,
+  certificate: webCertStack.certificate,
+  crossRegionReferences: true,
+  description: `CloudFront + S3 hosting for the Recipator web SPA (${deployEnv})`,
+});
+
 new GithubCiStack(app, 'RecipatorGithubCiStack', {
   ...londonEnv,
   deployEnv,
   githubOidcProviderArn,
+  webBucket: webStack.bucket,
+  webDistribution: webStack.distribution,
   description: `GitHub Actions OIDC role for recipator CI (${deployEnv})`,
 });
 
