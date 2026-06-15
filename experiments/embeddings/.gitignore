@@ -1,1 +1,3 @@
 data/recipes-raw.json
+.venv/
+.venv-bench/
