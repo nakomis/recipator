@@ -1,10 +1,10 @@
-"""Async embed-Lambda: compute a recipe's mxbai vector and store it on the item.
+"""Async embed-Lambda: compute a recipe's bge-base vector and store it on the item.
 
 Invoked (InvocationType=Event) by /extract after a recipe is saved. The vector is
 the SAME space the on-device CoreML model produces (verified cosine 1.0000), so
 the document embedding uses NO query prefix and is L2-normalised.
 
-Stored as a DynamoDB Binary attribute: 1024 float32 little-endian (4096 bytes).
+Stored as a DynamoDB Binary attribute: 768 float32 little-endian (3072 bytes).
 """
 import os
 import json
@@ -14,8 +14,8 @@ from datetime import datetime, timezone
 import boto3
 from sentence_transformers import SentenceTransformer
 
-MODEL_ID = "mixedbread-ai/mxbai-embed-large-v1"
-MODEL_TAG = "mxbai-v1"
+MODEL_ID = "BAAI/bge-base-en-v1.5"
+MODEL_TAG = "bge-base-v1"
 RECIPES_TABLE = os.environ["RECIPES_TABLE"]
 FUNCTION = os.environ.get("AWS_LAMBDA_FUNCTION_NAME", "recipator-embed")
 ENV = os.environ.get("DEPLOY_ENV", "unknown")

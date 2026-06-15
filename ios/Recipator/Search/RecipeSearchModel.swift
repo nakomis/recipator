@@ -1,5 +1,5 @@
 // RecipeSearchModel.swift — orchestrates on-device search: model prep, index sync,
-// and query → ranked recipe IDs. Combines keyword (FTS5) and semantic (mxbai) results.
+// and query → ranked recipe IDs. Combines keyword (FTS5) and semantic (embedding) results.
 //
 // Keyword search works as soon as text is synced — it does NOT wait for the model.
 // Semantic search joins in once the model is downloaded/compiled. Results merge with
@@ -60,12 +60,13 @@ final class RecipeSearchModel: ObservableObject {
 
         // 2. Semantic hits (only if the model is ready).
         var semantic: [String] = []
-        if let embedder = manager.embedder {
+        if let embedder = manager.embedder, let modelVersion = manager.version {
             let prefixed = manager.queryPrefix + trimmed
             if let qv = await Task.detached(priority: .userInitiated, operation: {
                 embedder.embed(prefixed)
             }).value {
-                let rows = (try? store.embeddings(restrictedTo: candidates)) ?? []
+                // Only vectors from the current model — see RecipeStore.embeddings(model:).
+                let rows = (try? store.embeddings(model: modelVersion, restrictedTo: candidates)) ?? []
                 semantic = await Task.detached(priority: .userInitiated) { [minScore] in
                     rows.map { ($0.recipeId, Cosine.similarity(qv, $0.vector)) }
                         .filter { $0.1 >= minScore }
