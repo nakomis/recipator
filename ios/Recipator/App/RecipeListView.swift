@@ -124,7 +124,7 @@ struct RecipeListView: View {
                     }
                 }
                 ToolbarItem(placement: .bottomBar) {
-                    Text("v\(Bundle.main.appVersion)")
+                    Text(Bundle.main.versionLabel)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
