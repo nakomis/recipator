@@ -4,7 +4,9 @@ import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setAccessToken } from './auth-token';
 import {
+  ownerFirstName,
   request,
+  useConfig,
   useDeleteRecipe,
   useExtract,
   useRecipe,
@@ -66,12 +68,33 @@ describe('request', () => {
   });
 });
 
+describe('ownerFirstName', () => {
+  it('derives a capitalised first name from an email', () => {
+    expect(ownerFirstName('martin@nakomis.com')).toBe('Martin');
+    expect(ownerFirstName('jane.doe@example.com')).toBe('Jane');
+    expect(ownerFirstName('username')).toBe('Username');
+    expect(ownerFirstName(undefined)).toBeUndefined();
+    expect(ownerFirstName('')).toBeUndefined();
+  });
+});
+
 describe('useRecipes', () => {
-  it('unwraps the recipes array', async () => {
+  it('unwraps the recipes array and requests the household view', async () => {
     fetchMock.mockResolvedValueOnce(makeRes({ recipes: [{ recipeId: 'a', title: 'A' }] }));
     const { result } = renderHook(() => useRecipes(), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual([{ recipeId: 'a', title: 'A' }]);
+    expect(fetchMock.mock.calls[0][0]).toContain('/recipes?all=true');
+  });
+});
+
+describe('useConfig', () => {
+  it('unwraps the groupMembers array', async () => {
+    fetchMock.mockResolvedValueOnce(makeRes({ groupMembers: [{ userId: 'me' }] }));
+    const { result } = renderHook(() => useConfig(), { wrapper: wrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual([{ userId: 'me' }]);
+    expect(fetchMock.mock.calls[0][0]).toContain('/config');
   });
 });
 
@@ -98,6 +121,7 @@ describe('useSearchCorpus', () => {
     const { result } = renderHook(() => useSearchCorpus(true), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual([{ recipeId: 'a' }]);
+    expect(fetchMock.mock.calls[0][0]).toContain('/embeddings?all=true');
   });
 });
 

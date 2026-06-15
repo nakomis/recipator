@@ -33,6 +33,14 @@ describe('RecipeGrid', () => {
     expect(screen.getByText('Ragu')).toBeInTheDocument();
   });
 
+  it('shows the owner first name only when showOwner is set', () => {
+    const recipes = [recipe({ recipeId: 'a', title: 'Keema', userEmail: 'jane@nakomis.com' })];
+    const { rerender } = render(<RecipeGrid recipes={recipes} />);
+    expect(screen.queryByText('Jane')).not.toBeInTheDocument();
+    rerender(<RecipeGrid recipes={recipes} showOwner />);
+    expect(screen.getByText('Jane')).toBeInTheDocument();
+  });
+
   it('shows the image when present and a placeholder when not', () => {
     const { container } = render(
       <RecipeGrid

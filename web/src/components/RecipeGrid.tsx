@@ -1,9 +1,11 @@
 import { Link } from '@tanstack/react-router';
 import { UtensilsCrossed } from 'lucide-react';
-import type { RecipeSummary } from '@/api/client';
+import { ownerFirstName, type RecipeSummary } from '@/api/client';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 
-function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
+function RecipeCard({ recipe, showOwner }: { recipe: RecipeSummary; showOwner: boolean }) {
+  const owner = showOwner ? ownerFirstName(recipe.userEmail) : undefined;
   return (
     <Link to="/recipes/$recipeId" params={{ recipeId: recipe.recipeId }} className="group">
       <Card className="h-full overflow-hidden p-0 transition-colors group-hover:border-ring">
@@ -21,19 +23,30 @@ function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
             </div>
           )}
         </div>
-        <CardContent className="p-3">
+        <CardContent className="flex flex-col gap-2 p-3">
           <h3 className="line-clamp-2 text-sm font-medium">{recipe.title}</h3>
+          {owner && (
+            <Badge variant="secondary" className="w-fit">
+              {owner}
+            </Badge>
+          )}
         </CardContent>
       </Card>
     </Link>
   );
 }
 
-function RecipeGrid({ recipes }: { recipes: RecipeSummary[] }) {
+function RecipeGrid({
+  recipes,
+  showOwner = false,
+}: {
+  recipes: RecipeSummary[];
+  showOwner?: boolean;
+}) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {recipes.map((r) => (
-        <RecipeCard key={r.recipeId} recipe={r} />
+        <RecipeCard key={r.recipeId} recipe={r} showOwner={showOwner} />
       ))}
     </div>
   );

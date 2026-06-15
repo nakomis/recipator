@@ -32,6 +32,12 @@ export interface ExtractResult extends RecipeDetail {
   imageCandidates?: string[];
 }
 
+/** A household group member as returned by GET /config. */
+export interface GroupMember {
+  userId: string;
+  displayName?: string;
+}
+
 /** An item from GET /embeddings — full search text for every recipe. */
 export interface EmbeddingItem {
   recipeId: string;
@@ -69,12 +75,41 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 
 export const recipesKey = ['recipes'] as const;
 export const embeddingsKey = ['embeddings'] as const;
+export const configKey = ['config'] as const;
 
-/** GET /recipes — the recipe grid (newest first; images included). */
+/**
+ * Owner's first name, derived from their email (or Cognito username) — e.g.
+ * "martin@nakomis.com" → "Martin". Mirrors the iOS RecipeListItem helper so the
+ * household picker labels match across clients.
+ */
+export function ownerFirstName(email: string | undefined): string | undefined {
+  if (!email) return undefined;
+  const local = email.split('@')[0] ?? email;
+  const first = local.split('.')[0] ?? local;
+  if (!first) return undefined;
+  return first.charAt(0).toUpperCase() + first.slice(1);
+}
+
+/**
+ * GET /recipes — the recipe grid (newest first; images included). Always fetches
+ * the household view (?all=true); the server scopes it to the caller's group
+ * (SSM group-members), so a non-member just gets their own recipes back. The
+ * owner picker then filters this set client-side, mirroring the iOS app.
+ */
 export function useRecipes() {
   return useQuery({
     queryKey: recipesKey,
-    queryFn: () => request<{ recipes: RecipeSummary[] }>('/recipes').then((r) => r.recipes),
+    queryFn: () =>
+      request<{ recipes: RecipeSummary[] }>('/recipes?all=true').then((r) => r.recipes),
+  });
+}
+
+/** GET /config — the household group members (used to decide whether to show the owner picker). */
+export function useConfig() {
+  return useQuery({
+    queryKey: configKey,
+    queryFn: () => request<{ groupMembers: GroupMember[] }>('/config').then((r) => r.groupMembers),
+    staleTime: 10 * 60 * 1000,
   });
 }
 
@@ -94,7 +129,7 @@ export function useRecipe(id: string) {
 export function useSearchCorpus(enabled: boolean) {
   return useQuery({
     queryKey: embeddingsKey,
-    queryFn: () => request<{ items: EmbeddingItem[] }>('/embeddings').then((r) => r.items),
+    queryFn: () => request<{ items: EmbeddingItem[] }>('/embeddings?all=true').then((r) => r.items),
     enabled,
     staleTime: 5 * 60 * 1000,
   });
