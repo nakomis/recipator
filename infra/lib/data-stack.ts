@@ -11,6 +11,8 @@ export class DataStack extends cdk.Stack {
   readonly recipesTable: dynamodb.Table;
   readonly failuresTable: dynamodb.Table;
   readonly modelsBucket: s3.Bucket;
+  readonly shoppingTable: dynamodb.Table;
+  readonly categoryCacheTable: dynamodb.Table;
 
   constructor(scope: Construct, id: string, props: DataStackProps) {
     super(scope, id, props);
@@ -50,8 +52,34 @@ export class DataStack extends cdk.Stack {
       autoDeleteObjects: !isProd,
     });
 
+    // shopping lists (RECP-37): single-table, list-aware from day one.
+    //   PK = USER#{userId}
+    //   SK = LISTMETA#{listId}            -> list metadata {name, isDefault, sortOrder}
+    //   SK = LIST#{listId}#ITEM#{itemId}  -> list item {raw, item, amount, unit, aisle, checked, sortOrder}
+    // Query a user's lists: SK begins_with LISTMETA#. A list's items: SK begins_with LIST#{listId}#ITEM#.
+    // No TTL — ticked items are cleared explicitly. PAY_PER_REQUEST (pennies at household scale).
+    this.shoppingTable = new dynamodb.Table(this, 'ShoppingTable', {
+      tableName: `recipator-shopping-${deployEnv}`,
+      partitionKey: { name: 'pk', type: dynamodb.AttributeType.STRING },
+      sortKey:      { name: 'sk', type: dynamodb.AttributeType.STRING },
+      billingMode:  dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy,
+    });
+
+    // category cache (RECP-35): caches LLM categorisation keyed on the normalised item
+    // text, shared across all users (categorisation is user-independent), so the long-tail
+    // Haiku call fires at most once per novel item ever. PK = key.
+    this.categoryCacheTable = new dynamodb.Table(this, 'CategoryCacheTable', {
+      tableName: `recipator-category-cache-${deployEnv}`,
+      partitionKey: { name: 'key', type: dynamodb.AttributeType.STRING },
+      billingMode:  dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy,
+    });
+
     new cdk.CfnOutput(this, 'RecipesTableName', { value: this.recipesTable.tableName });
     new cdk.CfnOutput(this, 'FailuresTableName', { value: this.failuresTable.tableName });
     new cdk.CfnOutput(this, 'ModelsBucketName', { value: this.modelsBucket.bucketName });
+    new cdk.CfnOutput(this, 'ShoppingTableName', { value: this.shoppingTable.tableName });
+    new cdk.CfnOutput(this, 'CategoryCacheTableName', { value: this.categoryCacheTable.tableName });
   }
 }

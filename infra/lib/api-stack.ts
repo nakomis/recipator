@@ -22,6 +22,8 @@ export interface ApiStackProps extends cdk.StackProps {
   deployEnv: 'sandbox' | 'prod';
   recipesTable: dynamodb.ITable;
   failuresTable: dynamodb.ITable;
+  shoppingTable: dynamodb.ITable;
+  categoryCacheTable: dynamodb.ITable;
   modelsBucket: s3.IBucket;
   certificate: acm.ICertificate;
   zone: route53.IHostedZone;
@@ -33,7 +35,7 @@ export class ApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
-    const { deployEnv, recipesTable, failuresTable, modelsBucket, certificate, zone, appDomain, webDomain } = props;
+    const { deployEnv, recipesTable, failuresTable, shoppingTable, categoryCacheTable, modelsBucket, certificate, zone, appDomain, webDomain } = props;
 
     // ── Shared Cognito user pool ──────────────────────────────────────────────
     const userPoolId = ssm.StringParameter.valueForStringParameter(
@@ -350,6 +352,36 @@ export class ApiStack extends cdk.Stack {
     });
     failuresTable.grantWriteData(reportFailureFn);
 
+    // ── Lambda: /shopping/* (single routing handler, RECP-37) ─────────────────
+    // One function serves all shopping routes. Adds categorise items via the same
+    // Bedrock/Haiku path as /extract, with a deterministic rules lookup + cache so
+    // the LLM only fires on the long tail.
+    const shoppingFn = new nodejs.NodejsFunction(this, 'ShoppingFn', {
+      functionName: `recipator-shopping-${deployEnv}`,
+      entry: path.join(__dirname, '../lambda/shopping/index.ts'),
+      handler: 'handler',
+      runtime,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 512,
+      environment: {
+        ...commonEnv,
+        SHOPPING_TABLE: shoppingTable.tableName,
+        CATEGORY_CACHE_TABLE: categoryCacheTable.tableName,
+        BEDROCK_MODEL_ID: bedrockModelId,
+      },
+      bundling,
+      logGroup: logGroupFor('ShoppingFnLogs', `recipator-shopping-${deployEnv}`),
+    });
+    shoppingTable.grantReadWriteData(shoppingFn);
+    categoryCacheTable.grantReadWriteData(shoppingFn);
+    shoppingFn.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['bedrock:InvokeModel'],
+      resources: [
+        `arn:aws:bedrock:*::foundation-model/anthropic.*`,
+        `arn:aws:bedrock:*:${this.account}:inference-profile/*`,
+      ],
+    }));
+
     // ── JWT authoriser ────────────────────────────────────────────────────────
     const authorizer = new HttpJwtAuthorizer(
       'CognitoAuthorizer',
@@ -394,6 +426,13 @@ export class ApiStack extends cdk.Stack {
     api.addRoutes({ path: '/recipes/{id}',   methods: [apigwv2.HttpMethod.PATCH],  integration: new HttpLambdaIntegration('UpdateInt',   updateFn) });
     api.addRoutes({ path: '/recipes/{id}',   methods: [apigwv2.HttpMethod.DELETE], integration: new HttpLambdaIntegration('DeleteInt',   deleteFn) });
     api.addRoutes({ path: '/failures',       methods: [apigwv2.HttpMethod.POST],   integration: new HttpLambdaIntegration('FailureInt',  reportFailureFn) });
+
+    // Shopping list (RECP-37) — all routes share the one ShoppingFn integration.
+    const shoppingInt = new HttpLambdaIntegration('ShoppingInt', shoppingFn);
+    api.addRoutes({ path: '/shopping/lists',         methods: [apigwv2.HttpMethod.GET],    integration: shoppingInt });
+    api.addRoutes({ path: '/shopping/items',         methods: [apigwv2.HttpMethod.GET, apigwv2.HttpMethod.POST], integration: shoppingInt });
+    api.addRoutes({ path: '/shopping/items/{itemId}', methods: [apigwv2.HttpMethod.PATCH, apigwv2.HttpMethod.DELETE], integration: shoppingInt });
+    api.addRoutes({ path: '/shopping/clear-ticked',  methods: [apigwv2.HttpMethod.POST],   integration: shoppingInt });
 
     // ── Route53 alias → API Gateway custom domain ─────────────────────────────
     new route53.ARecord(this, 'ApiDnsRecord', {
