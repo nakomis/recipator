@@ -127,6 +127,8 @@ struct RecipeListView: View {
                     Text(Bundle.main.versionLabel)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .fixedSize()   // keep on one line; let the glass button widen to fit
                 }
 
                 ToolbarItem(placement: .primaryAction) {
