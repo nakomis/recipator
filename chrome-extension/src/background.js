@@ -6,8 +6,8 @@
 
 import { signIn, clearTokens, isSignedIn } from "./auth.js";
 import { getEnvName, setEnvName } from "./config.js";
-import { extract } from "./api.js";
-import { importFromAmazon } from "./alexa-import.js";
+import { extract, setRecipeImage } from "./api.js";
+import { importFromAmazon, markResolved } from "./alexa-import.js";
 
 // Grab the active tab's rendered HTML + URL. The page is already loaded in the real
 // browser, so this sails past Cloudflare/bot protection that blocks server fetches —
@@ -27,7 +27,14 @@ async function capturePage() {
 
 async function saveRecipe() {
   const { url, html } = await capturePage();
-  return extract({ url, html });
+  const recipe = await extract({ url, html });
+  // /extract returns imageCandidates but doesn't persist one — pick the first
+  // (og:image), matching the iOS app's behaviour. Best-effort.
+  const imageUrl = recipe?.imageCandidates?.[0];
+  if (recipe?.recipeId && imageUrl) {
+    try { await setRecipeImage(recipe.recipeId, imageUrl); } catch { /* image is best-effort */ }
+  }
+  return recipe;
 }
 
 // ── Message router (from popup) ────────────────────────────────────────────────
@@ -61,6 +68,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           sendResponse({ ok: true, summary });
           break;
         }
+        case "markResolved":
+          await markResolved(msg.recipeId);
+          sendResponse({ ok: true });
+          break;
         default:
           sendResponse({ ok: false, error: `Unknown message: ${msg.type}` });
       }

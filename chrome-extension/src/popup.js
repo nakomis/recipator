@@ -23,6 +23,35 @@ function showResult(recipe) {
   $("result").hidden = false;
 }
 
+// Persist the last import's failures so they survive the popup closing (e.g. when
+// you click a search link and come back). Re-rendered whenever the popup opens.
+const FAILURES_KEY = "lastImportFailures";
+const FAILURES_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // don't resurface stale lists
+
+async function saveFailures(failed) {
+  if (!failed?.length) return chrome.storage.local.remove(FAILURES_KEY);
+  return chrome.storage.local.set({
+    [FAILURES_KEY]: { at: Date.now(), failures: failed.map((f) => ({ recipeId: f.recipeId, title: f.title })) },
+  });
+}
+async function loadFailures() {
+  const rec = (await chrome.storage.local.get(FAILURES_KEY))[FAILURES_KEY];
+  if (!rec || Date.now() - rec.at > FAILURES_MAX_AGE_MS) return [];
+  return rec.failures ?? [];
+}
+async function clearFailures() {
+  await chrome.storage.local.remove(FAILURES_KEY);
+  renderFailures([]);
+}
+// Drop one failure from the persisted list (when the user ticks it off).
+async function removeFailure(recipeId) {
+  const rec = (await chrome.storage.local.get(FAILURES_KEY))[FAILURES_KEY];
+  if (!rec) return;
+  const failures = (rec.failures ?? []).filter((f) => f.recipeId !== recipeId);
+  if (failures.length) await chrome.storage.local.set({ [FAILURES_KEY]: { ...rec, failures } });
+  else await chrome.storage.local.remove(FAILURES_KEY);
+}
+
 async function refresh() {
   const status = await send("getStatus");
   if (!status?.ok) return showStatus("Extension error — try reloading.", "error");
@@ -30,6 +59,9 @@ async function refresh() {
   $("env-badge").textContent = status.env;
   $("signed-out").hidden = status.signedIn;
   $("signed-in").hidden = !status.signedIn;
+
+  // Re-show any unresolved import failures from a previous run (signed-in only).
+  renderFailures(status.signedIn ? await loadFailures() : []);
 }
 
 // ── Live progress from the importer ────────────────────────────────────────────
@@ -48,9 +80,50 @@ function summarise(s) {
   const parts = [`${s.imported.length} imported`];
   if (s.skipped.length) parts.push(`${s.skipped.length} already saved`);
   if (s.failed.length) parts.push(`${s.failed.length} failed`);
-  let msg = parts.join(", ") + ".";
-  if (s.failed.length) msg += " Couldn't find: " + s.failed.map((f) => f.title).join(", ") + ".";
-  return msg;
+  return parts.join(", ") + ".";
+}
+
+// Render the failures as links to a BBC Good Food search — the recipe's photo on
+// the results page is usually the quickest way to spot the right one by eye.
+function renderFailures(failed) {
+  const box = $("import-failures");
+  box.textContent = "";
+  if (!failed?.length) { box.hidden = true; return; }
+
+  const p = document.createElement("p");
+  p.className = "muted";
+  const n = failed.length;
+  p.textContent = n === 1
+    ? "Couldn't find this one — search BBC Good Food (match by photo), tick once you've saved it:"
+    : `Couldn't find ${n} — search BBC Good Food (match by photo), tick each once you've saved it:`;
+  box.appendChild(p);
+
+  const ul = document.createElement("ul");
+  for (const f of failed) {
+    const li = document.createElement("li");
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.title = "Mark as imported — stop showing this";
+    cb.addEventListener("change", async () => {
+      cb.disabled = true;
+      await send("markResolved", { recipeId: f.recipeId });
+      await removeFailure(f.recipeId);
+      li.remove();
+      if (!ul.children.length) box.hidden = true; // last one ticked off
+    });
+
+    const a = document.createElement("a");
+    a.href = `https://www.bbcgoodfood.com/search?q=${encodeURIComponent(f.title)}`;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.textContent = f.title;
+
+    li.append(cb, a);
+    ul.appendChild(li);
+  }
+  box.appendChild(ul);
+  box.hidden = false;
 }
 
 // ── Wire up ─────────────────────────────────────────────────────────────────
@@ -64,6 +137,7 @@ $("sign-in").addEventListener("click", async () => {
 $("sign-out").addEventListener("click", async () => {
   await send("signOut");
   $("result").hidden = true;
+  await clearFailures();
   showStatus("");
   await refresh();
 });
@@ -71,6 +145,7 @@ $("sign-out").addEventListener("click", async () => {
 $("save").addEventListener("click", async () => {
   $("save").disabled = true;
   $("result").hidden = true;
+  $("import-failures").hidden = true;
   showStatus("Extracting recipe…");
   const r = await send("saveRecipe");
   if (r.ok) {
@@ -89,11 +164,14 @@ $("import").addEventListener("click", async () => {
   $("import").disabled = true;
   $("save").disabled = true;
   $("result").hidden = true;
+  $("import-failures").hidden = true;
   showStatus("Reading your Amazon saved recipes…");
   const r = await send("importAmazon");
   if (r.ok) {
     const s = r.summary;
     showStatus(summarise(s), s.failed.length ? "" : "ok");
+    renderFailures(s.failed);
+    await saveFailures(s.failed);
   } else if (r.error?.toLowerCase().includes("sign in")) {
     showStatus(r.error, "error");
     await refresh();
@@ -110,6 +188,7 @@ $("env-badge").addEventListener("click", async () => {
   const next = status.env === "production" ? "sandbox" : "production";
   await send("setEnv", { env: next });
   $("result").hidden = true;
+  $("import-failures").hidden = true;
   showStatus(`Switched to ${next}.`);
   await refresh();
 });

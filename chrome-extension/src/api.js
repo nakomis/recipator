@@ -33,3 +33,9 @@ export async function apiFetch(path, init = {}) {
 export function extract({ url, html }) {
   return apiFetch("/extract", { method: "POST", body: JSON.stringify({ url, html }) });
 }
+
+// Set a recipe's image. /extract returns imageCandidates but doesn't persist one;
+// the client picks it (PATCH /recipes/{id}).
+export function setRecipeImage(recipeId, imageUrl) {
+  return apiFetch(`/recipes/${recipeId}`, { method: "PATCH", body: JSON.stringify({ imageUrl }) });
+}
