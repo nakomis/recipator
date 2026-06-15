@@ -234,10 +234,16 @@ struct RecipeListView: View {
         }
     }
 
+    // These mutate @State that drives the List, so they must stay on the main actor: a
+    // plain `async` method resumes on the cooperative pool after an `await`, and an off-main
+    // mutation interleaving with an animated list update crashes UIKit's batch-update check
+    // ("invalid number of items in section 0"). @MainActor pins the post-await mutations.
+    @MainActor
     private func loadConfig() async {
         groupMembers = (try? await APIClient.shared.getConfig()) ?? []
     }
 
+    @MainActor
     private func fetch() async {
         isLoading = true
         defer { isLoading = false }
@@ -251,6 +257,7 @@ struct RecipeListView: View {
         }
     }
 
+    @MainActor
     private func load(_ id: String, userId: String? = nil) async {
         do {
             selected = try await APIClient.shared.getRecipe(id: id, userId: userId)
@@ -259,6 +266,7 @@ struct RecipeListView: View {
         }
     }
 
+    @MainActor
     private func delete(_ id: String) async {
         do {
             try await APIClient.shared.deleteRecipe(id: id)
