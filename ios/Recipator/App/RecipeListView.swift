@@ -170,7 +170,12 @@ struct RecipeListView: View {
             if !Task.isCancelled { rankedIds = result }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-            Task { await fetch() }
+            // Re-fetch the list AND re-sync the search index — a recipe added via the share
+            // extension while backgrounded must become searchable without a cold relaunch.
+            Task {
+                await fetch()
+                await search.sync(knownRecipeIds: Set(allRecipes.map(\.recipeId)))
+            }
         }
     }
 
