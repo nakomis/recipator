@@ -199,7 +199,7 @@ struct ShoppingListView: View {
             let deviceAisle = await OnDeviceCategoriser.aisle(for: text)
             let item = try await APIClient.shared.addShoppingItem(
                 text: text, aisle: deviceAisle, allowLlm: !offlineOnly
-            )
+        )
             items.append(item)
             newItem = ""
             addFocused = true   // keep the keyboard up for rapid entry
@@ -249,7 +249,7 @@ struct ShoppingListView: View {
     }
 
     /// Move an item to a different aisle. The server records the correction as a
-    /// training signal (RECP-49). Optimistic; reverts on failure.
+    /// training signal (RECP-34; mined later). Optimistic; reverts on failure.
     private func move(_ item: ShoppingItem, to aisle: Aisle) async {
         guard aisle.rawValue != item.aisle else { return }
         let previous = items

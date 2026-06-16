@@ -29,7 +29,7 @@ enum OnDeviceCategoriser {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
             return await classify(text)
-        }
+    }
         #endif
         return nil
     }
