@@ -247,12 +247,13 @@ final class APIClient {
     }
 
     /// Add a free-text item; the server categorises it (item + aisle) and returns it.
-    /// `aisle`, when supplied, is an on-device (Foundation Models) classification — the
-    /// server uses it in place of its Bedrock call (RECP-35); nil lets the server decide.
-    /// `allowLlm == false` (offline-only mode) tells the server not to use the cloud LLM.
-    func addShoppingItem(text: String, aisle: String? = nil, allowLlm: Bool = true) async throws -> ShoppingItem {
-        struct Body: Encodable { let text: String; let aisle: String?; let noLlm: Bool? }
-        let body = Body(text: text, aisle: aisle, noLlm: allowLlm ? nil : true)
+    /// `aisle`/`source`, when supplied, are an on-device categorisation (RECP-49): the
+    /// device ran the on-device cascade (rules → Foundation Models) and the server stores
+    /// the decision verbatim. nil lets the server decide. `allowLlm == false` (offline-only,
+    /// or no permitted network) tells the server not to use the cloud LLM.
+    func addShoppingItem(text: String, aisle: String? = nil, source: String? = nil, allowLlm: Bool = true) async throws -> ShoppingItem {
+        struct Body: Encodable { let text: String; let aisle: String?; let source: String?; let noLlm: Bool? }
+        let body = Body(text: text, aisle: aisle, source: source, noLlm: allowLlm ? nil : true)
         let data = try await request("/shopping/items", method: "POST", body: body)
         struct Response: Decodable { let item: ShoppingItem }
         guard let item = (try? JSONDecoder().decode(Response.self, from: data))?.item else {

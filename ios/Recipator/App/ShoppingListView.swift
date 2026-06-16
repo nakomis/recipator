@@ -14,6 +14,7 @@ struct ShoppingListView: View {
     @FocusState private var addFocused: Bool
     @AppStorage(SettingsKeys.showBadges) private var showBadges = AppConfig.isSandbox
     @AppStorage(SettingsKeys.offlineOnly) private var offlineOnly = false
+    @AppStorage(SettingsKeys.cloudOnCellular) private var cloudOnCellular = true
 
     private var unchecked: [ShoppingItem] { items.filter { !$0.checked } }
     private var checked: [ShoppingItem] { items.filter { $0.checked } }
@@ -194,12 +195,16 @@ struct ShoppingListView: View {
         isAdding = true
         defer { isAdding = false }
         do {
-            // Fast path: classify on-device (Foundation Models) when available, so the
-            // server can skip its Bedrock call (RECP-35). nil → server categorises.
-            let deviceAisle = await OnDeviceCategoriser.aisle(for: text)
+            // Run the full on-device cascade (rules → Foundation Models) first (RECP-49). When it
+            // resolves an aisle the server stores the decision verbatim and skips its own cascade;
+            // when it returns nil the server decides — using the cloud LLM only if it's permitted.
+            // Cloud LLM gate: allowed unless offline-only, and on mobile data only when the user
+            // has left "Cloud sorting on mobile data" on.
+            let local = await Categoriser.categorise(text)
+            let allowRemote = !offlineOnly && (Connectivity.shared.isWiFi || cloudOnCellular)
             let item = try await APIClient.shared.addShoppingItem(
-                text: text, aisle: deviceAisle, allowLlm: !offlineOnly
-        )
+                text: text, aisle: local.aisle, source: local.source, allowLlm: allowRemote
+            )
             items.append(item)
             newItem = ""
             addFocused = true   // keep the keyboard up for rapid entry

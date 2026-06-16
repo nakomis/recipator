@@ -6,6 +6,9 @@ import SwiftUI
 enum SettingsKeys {
     static let showBadges = "settings.showCategoryBadges"
     static let offlineOnly = "settings.offlineOnly"
+    /// Allow the cloud categoriser over mobile data (RECP-49). On by default; when off the
+    /// cloud LLM is only consulted on WiFi. No effect in offline-only mode.
+    static let cloudOnCellular = "settings.cloudOnCellular"
 }
 
 /// Profile & Settings screen — replaces the old account dropdown. Lets the user set a
@@ -18,6 +21,7 @@ struct SettingsView: View {
 
     @AppStorage(SettingsKeys.showBadges) private var showBadges = AppConfig.isSandbox
     @AppStorage(SettingsKeys.offlineOnly) private var offlineOnly = false
+    @AppStorage(SettingsKeys.cloudOnCellular) private var cloudOnCellular = true
 
     @State private var photoItem: PhotosPickerItem?
 
@@ -75,6 +79,24 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 4)
+
+                    if !offlineOnly {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Cloud sorting on mobile data")
+                            Picker("", selection: $cloudOnCellular) {
+                                Text("On").tag(true)
+                                Text("WiFi only").tag(false)
+                            }
+                            .pickerStyle(.segmented)
+                            .tint(.blue)
+                            Text(cloudOnCellular
+                                ? "Uses the cloud categoriser on WiFi and mobile data."
+                                : "Only uses the cloud categoriser on WiFi; on mobile data, anything on-device can’t place goes in Other.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                    }
                 }
 
                 Section {
