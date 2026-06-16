@@ -86,6 +86,18 @@ export class GithubCiStack extends cdk.Stack {
       resources: [`arn:aws:cloudfront::${this.account}:distribution/${webDistribution.distributionId}`],
     }));
 
+    // The web deploy job runs set-config.sh, which reads the Cognito + API + web SSM
+    // params to bake the per-env config into the build, and reads the web bucket/
+    // distribution ids to sync + invalidate. Grant read on exactly those param trees
+    // (Recipator's own, plus the shared Cognito params under /nakomis-infra).
+    role.addToPolicy(new iam.PolicyStatement({
+      actions: ['ssm:GetParameter', 'ssm:GetParameters'],
+      resources: [
+        `arn:aws:ssm:${this.region}:${this.account}:parameter/recipator/${deployEnv}/*`,
+        `arn:aws:ssm:${this.region}:${this.account}:parameter/nakomis-infra/${deployEnv}/cognito/*`,
+      ],
+    }));
+
     new cdk.CfnOutput(this, 'CiRoleArn', {
       value: role.roleArn,
       description: `IAM role for recipator GitHub Actions CI (${deployEnv})`,
