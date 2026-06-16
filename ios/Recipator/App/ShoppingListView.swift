@@ -89,6 +89,12 @@ struct ShoppingListView: View {
             } message: { Text(error ?? "") }
         }
         .task { await load() }
+        .onChange(of: sync.isSyncing) { _, syncing in
+            // Any background sync (post-add, foreground, connectivity regained, BG refresh) just
+            // reconciled the local DB — re-read so adopted server categorisations appear live,
+            // not only after a manual pull-to-refresh (RECP-49).
+            if !syncing { items = repo.items() }
+        }
     }
 
     /// A subtle sync status: a spinner while syncing, or a count of changes waiting to upload
@@ -200,9 +206,10 @@ struct ShoppingListView: View {
 
     private let repo = ShoppingRepository.shared
 
-    /// Push the local change to the server in the background (RECP-49 B3) — fire-and-forget; the
-    /// outbox keeps the change until it's confirmed, so this is safe to ignore if it fails.
-    private func kickSync() { Task { await sync.sync() } }
+    /// Push the local change to the server in the background (RECP-49 B3), then refresh the list
+    /// from the reconciled local DB — so a server-categorised item (adopted on the create push)
+    /// appears in its aisle without needing a manual pull-to-refresh.
+    private func kickSync() { Task { await sync.sync(); items = repo.items() } }
 
     private func load() async {
         // The local DB is the source of truth — read it instantly (works offline). The first time
