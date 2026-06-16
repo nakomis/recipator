@@ -13,7 +13,7 @@ import { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2 } from
 import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
 import { randomUUID } from 'crypto';
 import { isAisleId } from '../shared/aisles';
-import { cacheKey, categorise } from '../shared/categorise';
+import { CategorisationSource, cacheKey, categorise } from '../shared/categorise';
 import { makeBedrockCategoriser } from '../shared/bedrock-categorise';
 import { log } from '../shared/logger';
 import { cacheGet, cachePut } from './category-cache';
@@ -35,6 +35,10 @@ import {
 const bedrock = new BedrockRuntimeClient({});
 const BEDROCK_MODEL_ID = process.env.BEDROCK_MODEL_ID!;
 const llmCategorise = makeBedrockCategoriser(bedrock, BEDROCK_MODEL_ID);
+
+// Sources a client may claim when it resolved an item on-device (RECP-49). 'fallback' is
+// never accepted from a client — an unplaced item must reach the server's own cascade.
+const DEVICE_SOURCES = new Set<string>(['rules', 'cache', 'device', 'llm']);
 
 function ok(body: unknown, statusCode = 200): APIGatewayProxyResultV2 {
   return { statusCode, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -77,12 +81,14 @@ export async function handler(
         if (!text) return err(400, 'text is required');
         await ensureDefaultList(userId);
 
-        // An on-device categorisation (Foundation Models, RECP-35) may accompany the add;
-        // honoured only if it's a valid aisle id, otherwise ignored. `noLlm` (offline-only
-        // mode) tells the server not to fall back to the cloud LLM.
+        // An on-device categorisation (RECP-35/RECP-49) may accompany the add; honoured only
+        // if it's a valid aisle id, otherwise ignored. `source` (when the device ran the full
+        // on-device cascade) is stored verbatim. `noLlm` (offline-only) tells the server not
+        // to fall back to the cloud LLM.
         const deviceAisle = typeof body.aisle === 'string' && isAisleId(body.aisle) ? body.aisle : null;
+        const deviceSource = DEVICE_SOURCES.has(body.source as string) ? (body.source as CategorisationSource) : null;
         const allowLlm = body.noLlm !== true;
-        const cat = await categorise(text, { llmCategorise, cacheGet, cachePut }, deviceAisle, allowLlm);
+        const cat = await categorise(text, { llmCategorise, cacheGet, cachePut }, deviceAisle, allowLlm, deviceSource);
         const now = new Date().toISOString();
         const item: ShoppingItem = {
           itemId: randomUUID(),
