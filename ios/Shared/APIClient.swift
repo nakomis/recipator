@@ -25,6 +25,8 @@ struct RecipeListItem: Codable, Identifiable {
 struct GroupMember: Codable {
     let userId: String
     let displayName: String
+    /// Presigned download URL for the member's avatar, or nil if none is set (RECP-51).
+    let avatarUrl: String?
 }
 
 /// Response of GET /model — describes the current on-device embedding model.
@@ -198,6 +200,27 @@ final class APIClient {
         return (try? JSONDecoder().decode(Response.self, from: data))?.groupMembers ?? []
     }
 
+    /// Upload the caller's own avatar (RECP-51). Asks the API for a presigned PUT URL,
+    /// then sends the JPEG straight to S3 (bytes never pass through Lambda). Throws on any
+    /// failure so the caller can keep the pending marker and retry later.
+    func uploadAvatar(jpeg: Data) async throws {
+        let data = try await request("/config/avatar", method: "POST")
+        struct PresignedPut: Decodable { let url: String; let contentType: String }
+        guard let info = try? JSONDecoder().decode(PresignedPut.self, from: data),
+              let url = URL(string: info.url) else {
+            throw APIError.server(0, "Bad avatar upload URL")
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PUT"
+        // The presigned URL signs Content-Type, so the PUT must send exactly the same value.
+        req.setValue(info.contentType, forHTTPHeaderField: "Content-Type")
+        let (_, response) = try await URLSession.shared.upload(for: req, from: jpeg)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status) else {
+            throw APIError.server(status, "Avatar upload failed")
+        }
+    }
+
     func getModelInfo() async throws -> ModelInfo {
         let data = try await request("/model")
         return try JSONDecoder().decode(ModelInfo.self, from: data)
@@ -224,12 +247,15 @@ final class APIClient {
     }
 
     /// Add a free-text item; the server categorises it (item + aisle) and returns it.
-    /// `aisle`, when supplied, is an on-device (Foundation Models) classification — the
-    /// server uses it in place of its Bedrock call (RECP-35); nil lets the server decide.
-    /// `allowLlm == false` (offline-only mode) tells the server not to use the cloud LLM.
-    func addShoppingItem(text: String, aisle: String? = nil, allowLlm: Bool = true) async throws -> ShoppingItem {
-        struct Body: Encodable { let text: String; let aisle: String?; let noLlm: Bool? }
-        let body = Body(text: text, aisle: aisle, noLlm: allowLlm ? nil : true)
+    /// `aisle`/`source`, when supplied, are an on-device categorisation (RECP-49): the
+    /// device ran the on-device cascade (rules → Foundation Models) and the server stores
+    /// the decision verbatim. nil lets the server decide. `allowLlm == false` (offline-only,
+    /// or no permitted network) tells the server not to use the cloud LLM.
+    /// `itemId`, when supplied, is the client-generated id of an offline-created item (RECP-49 B3);
+    /// the server stores the row under it so re-pushing the create is idempotent.
+    func addShoppingItem(text: String, itemId: String? = nil, aisle: String? = nil, source: String? = nil, allowLlm: Bool = true) async throws -> ShoppingItem {
+        struct Body: Encodable { let text: String; let itemId: String?; let aisle: String?; let source: String?; let noLlm: Bool? }
+        let body = Body(text: text, itemId: itemId, aisle: aisle, source: source, noLlm: allowLlm ? nil : true)
         let data = try await request("/shopping/items", method: "POST", body: body)
         struct Response: Decodable { let item: ShoppingItem }
         guard let item = (try? JSONDecoder().decode(Response.self, from: data))?.item else {

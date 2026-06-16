@@ -5,6 +5,7 @@ private let everyoneTag = "__everyone__"
 
 struct RecipeListView: View {
     @EnvironmentObject private var auth: AuthService
+    @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var allRecipes: [RecipeListItem] = []
     @State private var selected: RecipeDetail?
     @State private var isLoading = false
@@ -48,6 +49,52 @@ struct RecipeListView: View {
         return allRecipes.filter { $0.userId == selectedUserId }
     }
 
+    // Owner filter — a segmented-style control showing each member's avatar (RECP-51) and first
+    // name, plus an "Everyone" option. Custom (not a `.segmented` Picker) because that style
+    // can't render the member avatars.
+    private var ownerPicker: some View {
+        HStack(spacing: 2) {
+            ForEach(owners, id: \.userId) { owner in
+                ownerSegment(title: owner.firstName, userId: owner.userId, tag: owner.userId)
+            }
+            ownerSegment(title: "Everyone", userId: nil, tag: everyoneTag)
+        }
+        .padding(2)
+        .background(Color(.tertiarySystemFill), in: Capsule())
+        // Size to content so names never truncate; the toolbar (iPad) gives it room, and on
+        // iPhone it sits on its own row that scrolls if it can't fit (RECP-51).
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    /// True on iPhone-width layouts, where the picker doesn't fit in the toolbar alongside the
+    /// refresh / sandbox / profile items, so it gets its own row below the search bar.
+    private var ownerPickerNeedsOwnRow: Bool { hSizeClass == .compact }
+
+    @ViewBuilder
+    private func ownerSegment(title: String, userId: String?, tag: String) -> some View {
+        let selected = selectedUserId == tag
+        Button {
+            selectedUserId = tag
+        } label: {
+            HStack(spacing: 5) {
+                if let userId {
+                    MemberAvatarView(userId: userId, size: 22)
+                }
+                Text(title)
+                    .font(.subheadline.weight(selected ? .semibold : .regular))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(selected ? Color(.systemBackground) : .clear, in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(selected ? Color.primary : .secondary)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
     private var trimmedQuery: String {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -69,36 +116,39 @@ struct RecipeListView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isSearching {
-                    searchContent
-                } else if isLoading && allRecipes.isEmpty {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if displayedRecipes.isEmpty {
-                    ContentUnavailableView(
-                        "No Recipes Yet",
-                        systemImage: "fork.knife",
-                        description: Text("Share a recipe URL from Safari or Chrome to save it here.")
-                    )
-                } else {
-                    recipeList(displayedRecipes, refreshable: true)
+            VStack(spacing: 0) {
+                // On iPhone the picker gets its own full-width row (it won't fit in the toolbar);
+                // on iPad it lives in the toolbar's principal slot — see below.
+                if isInGroup && ownerPickerNeedsOwnRow {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        ownerPicker.padding(.horizontal)
+                    }
+                    .padding(.bottom, 6)
+                }
+                Group {
+                    if isSearching {
+                        searchContent
+                    } else if isLoading && allRecipes.isEmpty {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if displayedRecipes.isEmpty {
+                        ContentUnavailableView(
+                            "No Recipes Yet",
+                            systemImage: "fork.knife",
+                            description: Text("Share a recipe URL from Safari or Chrome to save it here.")
+                        )
+                    } else {
+                        recipeList(displayedRecipes, refreshable: true)
+                    }
                 }
             }
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always),
                         prompt: "Search recipes")
             .navigationTitle("Recipator")
             .toolbar {
-                if isInGroup {
+                if isInGroup && !ownerPickerNeedsOwnRow {
                     ToolbarItem(placement: .principal) {
-                        Picker("", selection: $selectedUserId) {
-                            ForEach(owners, id: \.userId) { owner in
-                                Text(owner.firstName).tag(owner.userId)
-                            }
-                            Text("Everyone").tag(everyoneTag)
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(minWidth: 200, maxWidth: 320)
+                        ownerPicker
                     }
                 }
                 ToolbarItem(placement: .topBarLeading) {
@@ -227,6 +277,7 @@ struct RecipeListView: View {
     @MainActor
     private func loadConfig() async {
         groupMembers = (try? await APIClient.shared.getConfig()) ?? []
+        AvatarCache.shared.update(from: groupMembers)
     }
 
     @MainActor
@@ -293,6 +344,9 @@ struct RecipeRow: View {
 
                 HStack(spacing: 6) {
                     if showOwner, let name = recipe.ownerFirstName {
+                        if let uid = recipe.userId {
+                            MemberAvatarView(userId: uid, size: 16)
+                        }
                         Text(name)
                             .font(.caption.bold())
                             .foregroundStyle(Color.accentColor)

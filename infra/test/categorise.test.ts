@@ -104,6 +104,26 @@ describe('categorise', () => {
     expect(result).toMatchObject({ aisle: 'dairy-eggs', source: 'rules' });
   });
 
+  it('stores a device-resolved decision verbatim, bypassing the server cascade (RECP-49)', async () => {
+    // Device says "milk" is world-foods with source 'device' — server trusts it, does NOT
+    // re-run its own rules (which would say dairy-eggs), and caches it (novel device result).
+    const cachePut = jest.fn().mockResolvedValue(undefined);
+    const llmCategorise = jest.fn();
+    const result = await categorise(
+      'milk', { llmCategorise, cachePut }, 'world-foods', true, 'device',
+    );
+    expect(result).toMatchObject({ aisle: 'world-foods', source: 'device' });
+    expect(cachePut).toHaveBeenCalledWith('milk', { aisle: 'world-foods', item: 'milk' });
+    expect(llmCategorise).not.toHaveBeenCalled();
+  });
+
+  it('does not cache a device decision sourced from rules', async () => {
+    const cachePut = jest.fn().mockResolvedValue(undefined);
+    const result = await categorise('sauerkraut', { cachePut }, 'world-foods', true, 'rules');
+    expect(result).toMatchObject({ aisle: 'world-foods', source: 'rules' });
+    expect(cachePut).not.toHaveBeenCalled();
+  });
+
   it('skips the LLM and falls back to Other in offline-only mode (RECP-35)', async () => {
     const llmCategorise = jest.fn().mockResolvedValue({ aisle: 'world-foods', item: 'sauerkraut' });
     const result = await categorise(

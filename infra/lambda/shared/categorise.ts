@@ -58,10 +58,29 @@ export async function categorise(
   /** When false ("offline only"), never call the cloud LLM — anything rules/cache/device
    *  can't place falls straight to Other. */
   allowLlm = true,
+  /** How the client resolved `deviceAisle` on-device (RECP-49): 'rules' | 'cache' | 'device'
+   *  | 'llm'. When set (with a valid aisle) the device has run the whole on-device cascade,
+   *  so we trust its decision verbatim and skip the server cascade — the server here is just
+   *  storage + the shared cache. Absent (web, or older clients) → the server decides. */
+  deviceSource?: CategorisationSource | null,
 ): Promise<CategorisedItem> {
   const { amount, unit, itemText } = parseQuantity(raw);
   const label = cleanLabel(itemText) || cleanLabel(raw);
   const key = cacheKey(itemText || raw);
+
+  // 0. Device-authoritative: the client ran the on-device cascade and resolved this itself
+  //    (RECP-49). Store it verbatim; cache novel (device/llm) results so web + other users
+  //    benefit. Rules/cache decisions need no extra caching (they're already derivable).
+  if (deviceAisle && isAisleId(deviceAisle) && deviceSource) {
+    if ((deviceSource === 'device' || deviceSource === 'llm') && deps.cachePut) {
+      try {
+        await deps.cachePut(key, { aisle: deviceAisle, item: label });
+      } catch {
+        /* cache write is best-effort */
+      }
+    }
+    return { item: label, amount, unit, aisle: deviceAisle, source: deviceSource };
+  }
 
   // 1. Deterministic rules — free, instant.
   const ruled = ruleAisle(itemText || raw);

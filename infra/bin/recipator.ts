@@ -47,6 +47,7 @@ const apiStack = new ApiStack(app, 'RecipatorApiStack', {
   shoppingTable: dataStack.shoppingTable,
   categoryCacheTable: dataStack.categoryCacheTable,
   modelsBucket: dataStack.modelsBucket,
+  avatarsBucket: dataStack.avatarsBucket,
   certificate: certStack.certificate,
   zone: certStack.zone,
   appDomain: certStack.appDomain,

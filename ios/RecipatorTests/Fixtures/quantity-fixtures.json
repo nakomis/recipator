@@ -1,0 +1,18 @@
+[
+  { "raw": "200ml double cream", "amount": "200", "unit": "ml", "itemText": "double cream" },
+  { "raw": "4 pints of milk", "amount": "4", "unit": "pt", "itemText": "milk" },
+  { "raw": "1/2 cup cream", "amount": "1/2", "unit": "cup", "itemText": "cream" },
+  { "raw": "milk x2", "amount": "2", "unit": "x", "itemText": "milk" },
+  { "raw": "2 x tomatoes", "amount": "2", "unit": "x", "itemText": "tomatoes" },
+  { "raw": "2x tomatoes", "amount": "2", "unit": "x", "itemText": "tomatoes" },
+  { "raw": "bin bags", "amount": null, "unit": null, "itemText": "bin bags" },
+  { "raw": "4 large eggs", "amount": "4", "unit": null, "itemText": "large eggs" },
+  { "raw": "1lb beef mince", "amount": "1", "unit": "lb", "itemText": "beef mince" },
+  { "raw": "500 g flour", "amount": "500", "unit": "g", "itemText": "flour" },
+  { "raw": "1.5 l water", "amount": "1.5", "unit": "l", "itemText": "water" },
+  { "raw": "12 eggs", "amount": "12", "unit": null, "itemText": "eggs" },
+  { "raw": "2 tins chopped tomatoes", "amount": "2", "unit": "tin", "itemText": "chopped tomatoes" },
+  { "raw": "3 cloves garlic", "amount": "3", "unit": "clove", "itemText": "garlic" },
+  { "raw": "8oz cheddar", "amount": "8", "unit": "oz", "itemText": "cheddar" },
+  { "raw": "", "amount": null, "unit": null, "itemText": "" }
+]

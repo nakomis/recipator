@@ -1,4 +1,5 @@
 import XCTest
+@testable import Recipator
 
 final class ShoppingTests: XCTestCase {
     private func makeItem(item: String, amount: String?, unit: String?, checked: Bool = false,

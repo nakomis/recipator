@@ -25,6 +25,7 @@ export interface ApiStackProps extends cdk.StackProps {
   shoppingTable: dynamodb.ITable;
   categoryCacheTable: dynamodb.ITable;
   modelsBucket: s3.IBucket;
+  avatarsBucket: s3.IBucket;
   certificate: acm.ICertificate;
   zone: route53.IHostedZone;
   appDomain: string;
@@ -35,7 +36,7 @@ export class ApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
-    const { deployEnv, recipesTable, failuresTable, shoppingTable, categoryCacheTable, modelsBucket, certificate, zone, appDomain, webDomain } = props;
+    const { deployEnv, recipesTable, failuresTable, shoppingTable, categoryCacheTable, modelsBucket, avatarsBucket, certificate, zone, appDomain, webDomain } = props;
 
     // ── Shared Cognito user pool ──────────────────────────────────────────────
     const userPoolId = ssm.StringParameter.valueForStringParameter(
@@ -200,11 +201,29 @@ export class ApiStack extends cdk.Stack {
       entry: path.join(__dirname, '../lambda/config/get.ts'),
       handler: 'handler',
       runtime,
-      environment: { ...commonEnv, GROUP_MEMBERS_PARAM: groupMembersParam.parameterName },
+      environment: {
+        ...commonEnv,
+        GROUP_MEMBERS_PARAM: groupMembersParam.parameterName,
+        AVATARS_BUCKET: avatarsBucket.bucketName,
+      },
       bundling,
       logGroup: logGroupFor('ConfigFnLogs', `recipator-config-${deployEnv}`),
     });
     groupMembersParam.grantRead(configFn);
+    // Head + presign a download URL for each member's avatar (RECP-51).
+    avatarsBucket.grantRead(configFn);
+
+    // ── Lambda: POST /config/avatar (presigned PUT for the caller's own avatar) ──
+    const avatarPutFn = new nodejs.NodejsFunction(this, 'AvatarPutFn', {
+      functionName: `recipator-avatar-put-${deployEnv}`,
+      entry: path.join(__dirname, '../lambda/config/avatar-put.ts'),
+      handler: 'handler',
+      runtime,
+      environment: { ...commonEnv, AVATARS_BUCKET: avatarsBucket.bucketName },
+      bundling,
+      logGroup: logGroupFor('AvatarPutFnLogs', `recipator-avatar-put-${deployEnv}`),
+    });
+    avatarsBucket.grantPut(avatarPutFn);
 
     // ── Lambda: embed (Python container, mxbai) ───────────────────────────────
     // Async enrichment: computes a recipe's semantic-search vector and stores it
@@ -418,6 +437,7 @@ export class ApiStack extends cdk.Stack {
     });
 
     api.addRoutes({ path: '/config',         methods: [apigwv2.HttpMethod.GET],    integration: new HttpLambdaIntegration('ConfigInt',   configFn) });
+    api.addRoutes({ path: '/config/avatar',  methods: [apigwv2.HttpMethod.POST],   integration: new HttpLambdaIntegration('AvatarPutInt', avatarPutFn) });
     api.addRoutes({ path: '/extract',        methods: [apigwv2.HttpMethod.POST],   integration: new HttpLambdaIntegration('ExtractInt',  extractFn) });
     api.addRoutes({ path: '/recipes',        methods: [apigwv2.HttpMethod.GET],    integration: new HttpLambdaIntegration('ListInt',     listFn) });
     api.addRoutes({ path: '/embeddings',     methods: [apigwv2.HttpMethod.GET],    integration: new HttpLambdaIntegration('EmbeddingsInt', embeddingsFn) });

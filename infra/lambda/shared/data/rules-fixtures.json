@@ -1,0 +1,16 @@
+[
+  { "text": "milk", "aisle": "dairy-eggs" },
+  { "text": "double cream", "aisle": "dairy-eggs" },
+  { "text": "garlic powder", "aisle": "condiments" },
+  { "text": "garlic", "aisle": "produce" },
+  { "text": "kidney beans", "aisle": "cupboard" },
+  { "text": "beans", "aisle": "cupboard" },
+  { "text": "chicken breast", "aisle": "meat-fish" },
+  { "text": "bin bags", "aisle": "household" },
+  { "text": "bananas", "aisle": "produce" },
+  { "text": "basmati rice", "aisle": "pasta-rice-grains" },
+  { "text": "toilet roll", "aisle": "household" },
+  { "text": "cat food", "aisle": "baby-pet" },
+  { "text": "xyzzy widget", "aisle": null },
+  { "text": "", "aisle": null }
+]
