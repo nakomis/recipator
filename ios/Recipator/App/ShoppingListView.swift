@@ -12,6 +12,8 @@ struct ShoppingListView: View {
     @State private var error: String?
     @State private var confirmClearAll = false
     @FocusState private var addFocused: Bool
+    @AppStorage(SettingsKeys.showBadges) private var showBadges = AppConfig.isSandbox
+    @AppStorage(SettingsKeys.offlineOnly) private var offlineOnly = false
 
     private var unchecked: [ShoppingItem] { items.filter { !$0.checked } }
     private var checked: [ShoppingItem] { items.filter { $0.checked } }
@@ -64,7 +66,7 @@ struct ShoppingListView: View {
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    AccountMenu()
+                    ProfileButton()
                 }
                 // Dismiss the keyboard — the add field otherwise has no way to close it.
                 ToolbarItemGroup(placement: .keyboard) {
@@ -152,7 +154,7 @@ struct ShoppingListView: View {
                     .strikethrough(item.checked)
                     .foregroundStyle(item.checked ? .secondary : .primary)
                 Spacer()
-                if AppConfig.isSandbox, let badge = sourceBadge(item.source) {
+                if showBadges, let badge = sourceBadge(item.source) {
                     Text(badge.label)
                         .font(.caption2.bold())
                         .foregroundStyle(.white)
@@ -195,7 +197,9 @@ struct ShoppingListView: View {
             // Fast path: classify on-device (Foundation Models) when available, so the
             // server can skip its Bedrock call (RECP-35). nil → server categorises.
             let deviceAisle = await OnDeviceCategoriser.aisle(for: text)
-            let item = try await APIClient.shared.addShoppingItem(text: text, aisle: deviceAisle)
+            let item = try await APIClient.shared.addShoppingItem(
+                text: text, aisle: deviceAisle, allowLlm: !offlineOnly
+            )
             items.append(item)
             newItem = ""
             addFocused = true   // keep the keyboard up for rapid entry

@@ -1,0 +1,122 @@
+import PhotosUI
+import SwiftUI
+
+/// UserDefaults keys for the user-facing settings (RECP-35). Shared between the settings
+/// screen and the views that read them (e.g. the shopping list badge + add flow).
+enum SettingsKeys {
+    static let showBadges = "settings.showCategoryBadges"
+    static let offlineOnly = "settings.offlineOnly"
+}
+
+/// Profile & Settings screen — replaces the old account dropdown. Lets the user set a
+/// profile picture from their Photos and tune categorisation behaviour. The two settings
+/// use segmented selectors (tinted blue) rather than checkboxes.
+struct SettingsView: View {
+    @EnvironmentObject private var auth: AuthService
+    @EnvironmentObject private var profile: ProfileStore
+    @Environment(\.dismiss) private var dismiss
+
+    @AppStorage(SettingsKeys.showBadges) private var showBadges = AppConfig.isSandbox
+    @AppStorage(SettingsKeys.offlineOnly) private var offlineOnly = false
+
+    @State private var photoItem: PhotosPickerItem?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    VStack(spacing: 12) {
+                        AvatarView(data: profile.imageData, size: 96)
+                        PhotosPicker(
+                            profile.imageData == nil ? "Add photo" : "Change photo",
+                            selection: $photoItem,
+                            matching: .images
+                        )
+                        .font(.callout)
+                        if profile.imageData != nil {
+                            Button("Remove photo", role: .destructive) { profile.clear() }
+                                .font(.caption)
+                        }
+                        if let name = auth.displayName {
+                            Text(name).font(.headline)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
+                }
+
+                Section("Categorisation") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Show categorisation badges")
+                        Picker("", selection: $showBadges) {
+                            Text("Hidden").tag(false)
+                            Text("Shown").tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                        .tint(.blue)
+                        Text("Tags each item with how it was sorted (rules, on-device, Lambda).")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Categorisation source")
+                        Picker("", selection: $offlineOnly) {
+                            Text("On-device + Cloud").tag(false)
+                            Text("On-device only").tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                        .tint(.blue)
+                        Text(offlineOnly
+                            ? "Items are sorted on this device only; anything it can’t place goes in Other (no cloud LLM)."
+                            : "Falls back to the cloud categoriser when on-device can’t place an item.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Section {
+                    Text(Bundle.main.versionLabel)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section {
+                    Button("Sign Out", role: .destructive) { auth.signOut() }
+                }
+            }
+            .navigationTitle("Profile & Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .onChange(of: photoItem) { _, item in
+                guard let item else { return }
+                Task {
+                    if let data = try? await item.loadTransferable(type: Data.self) {
+                        profile.setImage(data)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Toolbar entry point: the avatar button that presents the settings sheet. Replaces the
+/// old person.circle dropdown menu.
+struct ProfileButton: View {
+    @EnvironmentObject private var profile: ProfileStore
+    @State private var showing = false
+
+    var body: some View {
+        Button { showing = true } label: {
+            AvatarView(data: profile.imageData, size: 28)
+        }
+        .accessibilityLabel("Profile and settings")
+        .sheet(isPresented: $showing) { SettingsView() }
+    }
+}

@@ -78,9 +78,11 @@ export async function handler(
         await ensureDefaultList(userId);
 
         // An on-device categorisation (Foundation Models, RECP-35) may accompany the add;
-        // honoured only if it's a valid aisle id, otherwise ignored.
+        // honoured only if it's a valid aisle id, otherwise ignored. `noLlm` (offline-only
+        // mode) tells the server not to fall back to the cloud LLM.
         const deviceAisle = typeof body.aisle === 'string' && isAisleId(body.aisle) ? body.aisle : null;
-        const cat = await categorise(text, { llmCategorise, cacheGet, cachePut }, deviceAisle);
+        const allowLlm = body.noLlm !== true;
+        const cat = await categorise(text, { llmCategorise, cacheGet, cachePut }, deviceAisle, allowLlm);
         const now = new Date().toISOString();
         const item: ShoppingItem = {
           itemId: randomUUID(),

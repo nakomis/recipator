@@ -104,6 +104,18 @@ describe('categorise', () => {
     expect(result).toMatchObject({ aisle: 'dairy-eggs', source: 'rules' });
   });
 
+  it('skips the LLM and falls back to Other in offline-only mode (RECP-35)', async () => {
+    const llmCategorise = jest.fn().mockResolvedValue({ aisle: 'world-foods', item: 'sauerkraut' });
+    const result = await categorise(
+      'sauerkraut',
+      { llmCategorise, cacheGet: async () => null },
+      null,
+      false, // allowLlm = false → offline only
+    );
+    expect(result).toMatchObject({ aisle: 'other', source: 'fallback' });
+    expect(llmCategorise).not.toHaveBeenCalled();
+  });
+
   it('coerces an invalid LLM aisle to Other', async () => {
     const llmCategorise = jest.fn().mockResolvedValue({ aisle: 'not-a-real-aisle', item: 'thing' });
     const result = await categorise('mystery thing', { llmCategorise, cacheGet: async () => null });

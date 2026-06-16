@@ -55,6 +55,9 @@ export async function categorise(
    *  tail in place of a Bedrock call — consulted after rules/cache so deterministic
    *  matches still win, and cached so web/other users benefit too. */
   deviceAisle?: string | null,
+  /** When false ("offline only"), never call the cloud LLM — anything rules/cache/device
+   *  can't place falls straight to Other. */
+  allowLlm = true,
 ): Promise<CategorisedItem> {
   const { amount, unit, itemText } = parseQuantity(raw);
   const label = cleanLabel(itemText) || cleanLabel(raw);
@@ -91,8 +94,9 @@ export async function categorise(
     return { item: label, amount, unit, aisle: deviceAisle, source: 'device' };
   }
 
-  // 4. LLM — the long tail, at most once per novel item (result is cached).
-  if (deps.llmCategorise) {
+  // 4. LLM — the long tail, at most once per novel item (result is cached). Skipped
+  //    entirely in offline-only mode.
+  if (allowLlm && deps.llmCategorise) {
     const res = await deps.llmCategorise(itemText || raw);
     if (res) {
       const aisle = toAisleId(res.aisle);
