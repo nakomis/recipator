@@ -5,6 +5,7 @@
 // local mutation, and by a periodic background-refresh task (see RecipatorApp).
 import Foundation
 import SwiftUI
+import os
 
 /// The subset of the API the sync needs. A protocol so tests can drive it with a fake (the real
 /// conformance is `APIClient`).
@@ -22,6 +23,10 @@ extension APIClient: ShoppingSyncAPI {}
 @MainActor
 final class ShoppingSync: ObservableObject {
     static let shared = ShoppingSync()
+
+    /// Temporary diagnostics for the categorisation down-sync (RECP-49). View on device with
+    /// Console.app or `log stream --predicate 'subsystem == "com.nakomis.recipator"'`.
+    private static let log = Logger(subsystem: "com.nakomis.recipator", category: "shopping-sync")
 
     /// A spinner while a sync runs, and the count of un-pushed mutations — for a subtle status.
     @Published private(set) var isSyncing = false
@@ -63,11 +68,13 @@ final class ShoppingSync: ObservableObject {
 
         // 1. Push the outbox in order; stop at the first failure and keep the remainder for next time.
         let pending = (try? store.pendingOutbox()) ?? []
+        Self.log.debug("sync start: pending=\(pending.count, privacy: .public) allowCloudLlm=\(allowCloudLlm, privacy: .public)")
         for entry in pending {
             do {
                 try await push(entry.op, allowCloudLlm: allowCloudLlm)
                 try store.removeOutbox(seq: entry.seq)
             } catch {
+                Self.log.error("push failed (kind=\(entry.op.kind.rawValue, privacy: .public)) — keeping outbox, skipping pull: \(String(describing: error), privacy: .public)")
                 return // network/server error — retry the rest on the next trigger
             }
         }
@@ -75,7 +82,9 @@ final class ShoppingSync: ObservableObject {
         // 2. Pull the authoritative snapshot and reconcile, preserving any mutation that raced in
         //    during the push (it stays in the outbox and is pushed next time).
         guard let snapshot = try? await api.listShoppingItems() else { return }
-        try? store.reconcile(serverItems: snapshot, pendingItemIds: pendingItemIds())
+        let pendingIds = pendingItemIds()
+        Self.log.debug("reconcile: server=\(snapshot.count, privacy: .public) pendingIds=\(pendingIds.count, privacy: .public)")
+        try? store.reconcile(serverItems: snapshot, pendingItemIds: pendingIds)
     }
 
     // MARK: - Internal
@@ -92,13 +101,19 @@ final class ShoppingSync: ObservableObject {
             // Resolved on-device → store the decision verbatim. Unresolved (nil source) → send no
             // aisle so the server categorises it (cloud LLM, if allowed).
             let resolved = item.source != nil
-            _ = try await api.addShoppingItem(
+            let saved = try await api.addShoppingItem(
                 text: item.raw,
                 itemId: item.itemId,
                 aisle: resolved ? item.aisle : nil,
                 source: resolved ? item.source : nil,
                 allowLlm: allowCloudLlm
             )
+            // The server may have categorised an item the device couldn't place — adopt its
+            // decision locally now so the aisle lands deterministically on the push, instead of
+            // waiting on the pull+reconcile (which skips the item while its create is still
+            // pending and so was silently dropping the server's categorisation) (RECP-49).
+            let adopted = (try? store?.adoptServerCreate(saved, ifLocalUnchangedSince: item.updatedAt)) ?? false
+            Self.log.debug("push create itemId=\(item.itemId, privacy: .public) sent=\(resolved ? item.aisle : "nil", privacy: .public) serverAisle=\(saved.aisle, privacy: .public) serverSource=\(saved.source ?? "nil", privacy: .public) adopted=\(adopted, privacy: .public)")
         case .update:
             guard let id = op.itemId else { return }
             _ = try await api.updateShoppingItem(id: id, checked: op.checked, item: op.name, aisle: op.aisle)
