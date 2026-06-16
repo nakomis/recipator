@@ -39,6 +39,11 @@ targets:
             - path: Shared
         resources:
             - Recipator/Resources/Assets.xcassets
+            # Categorisation data shared with the server (RECP-49). These are copies of the
+            # canonical infra/lambda/shared/data/*.json, kept byte-identical by an infra
+            # parity test (xcodegen ignores out-of-tree resource paths, hence local copies).
+            - Recipator/Resources/aisles.json
+            - Recipator/Resources/categorise-rules.json
         info:
             path: Recipator/Resources/Info.plist
             properties:
@@ -138,6 +143,9 @@ targets:
     RecipatorTests:
         type: bundle.unit-test
         platform: iOS
+        # The Fixtures/*.json (copies of the canonical infra/lambda/shared/data/*-fixtures.json,
+        # guarded by an infra parity test) are picked up as test-bundle resources by the
+        # source scan (RECP-49).
         sources:
             - RecipatorTests
         dependencies:

@@ -23,6 +23,10 @@ describe('shared aisle data', () => {
     expect(readJson('../../web/src/lib/aisles.json')).toEqual(canonicalAisles);
   });
 
+  it('the iOS app copy is byte-identical to the canonical JSON', () => {
+    expect(readJson('../../ios/Recipator/Resources/aisles.json')).toEqual(canonicalAisles);
+  });
+
   it('ids are unique and Other sorts last', () => {
     const ids = canonicalAisles.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -35,5 +39,20 @@ describe('shared rules data', () => {
     for (const aisle of Object.keys(canonicalRules)) {
       expect(isAisleId(aisle)).toBe(true);
     }
+  });
+
+  it('the iOS rules copy is byte-identical to the canonical JSON', () => {
+    expect(readJson('../../ios/Recipator/Resources/categorise-rules.json')).toEqual(canonicalRules);
+  });
+});
+
+describe('shared fixture copies (iOS XCTest reads identical fixtures)', () => {
+  it('quantity fixtures match', () => {
+    expect(readJson('../../ios/RecipatorTests/Fixtures/quantity-fixtures.json'))
+      .toEqual(readJson('../lambda/shared/data/quantity-fixtures.json'));
+  });
+  it('rules fixtures match', () => {
+    expect(readJson('../../ios/RecipatorTests/Fixtures/rules-fixtures.json'))
+      .toEqual(readJson('../lambda/shared/data/rules-fixtures.json'));
   });
 });
