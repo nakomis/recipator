@@ -152,8 +152,13 @@ schemes:
         build:
             targets:
                 Recipator: all
+                RecipatorTests: [test]
         run:
             config: Debug Sandbox
+        test:
+            config: Debug Sandbox
+            targets:
+                - RecipatorTests
         archive:
             config: Release Sandbox
 
