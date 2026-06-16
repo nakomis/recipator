@@ -13,13 +13,14 @@ import { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2 } from
 import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
 import { randomUUID } from 'crypto';
 import { isAisleId } from '../shared/aisles';
-import { categorise } from '../shared/categorise';
+import { cacheKey, categorise } from '../shared/categorise';
 import { makeBedrockCategoriser } from '../shared/bedrock-categorise';
 import { log } from '../shared/logger';
 import { cacheGet, cachePut } from './category-cache';
 import {
   DEFAULT_LIST_ID,
   ShoppingItem,
+  clearAll,
   clearTicked,
   deleteItem,
   ensureDefaultList,
@@ -27,6 +28,7 @@ import {
   listItems,
   listLists,
   putItem,
+  recordCorrection,
   updateItem,
 } from './store';
 
@@ -104,8 +106,24 @@ export async function handler(
           const current = await getItem(userId, listId, itemId);
           return current ? ok({ item: current }) : err(404, 'Item not found');
         }
+        // If the user is moving the item to a different aisle, capture the before-state
+        // so we can record the correction as a training signal (RECP-49).
+        const before = patch.aisle !== undefined ? await getItem(userId, listId, itemId) : null;
         const updated = await updateItem(userId, listId, itemId, patch);
-        return updated ? ok({ item: updated }) : err(404, 'Item not found');
+        if (!updated) return err(404, 'Item not found');
+        if (before && patch.aisle && before.aisle !== patch.aisle) {
+          await recordCorrection(userId, listId, itemId, {
+            itemText: before.item,
+            cacheKey: cacheKey(before.item),
+            fromAisle: before.aisle,
+            toAisle: patch.aisle,
+            source: before.source,
+          });
+          log.info('shopping:aisle_correction', {
+            userId, itemId, from: before.aisle, to: patch.aisle, source: before.source,
+          });
+        }
+        return ok({ item: updated });
       }
 
       case 'DELETE /shopping/items/{itemId}': {
@@ -117,6 +135,12 @@ export async function handler(
       case 'POST /shopping/clear-ticked': {
         const removed = await clearTicked(userId, listId);
         log.info('shopping:clear_ticked', { userId, listId, removed });
+        return ok({ removed });
+      }
+
+      case 'POST /shopping/clear-all': {
+        const removed = await clearAll(userId, listId);
+        log.info('shopping:clear_all', { userId, listId, removed });
         return ok({ removed });
       }
 

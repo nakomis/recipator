@@ -19,8 +19,9 @@ final class ShoppingTests: XCTestCase {
     }
 
     func testDisplayLabel() {
-        XCTAssertEqual(makeItem(item: "Cream", amount: "200", unit: "ml").displayLabel, "Cream (200ml)")
-        XCTAssertEqual(makeItem(item: "Bin bags", amount: nil, unit: nil).displayLabel, "Bin bags")
+        // Item names are title-cased for display; the quantity is left as-is.
+        XCTAssertEqual(makeItem(item: "double cream", amount: "200", unit: "ml").displayLabel, "Double Cream (200ml)")
+        XCTAssertEqual(makeItem(item: "bin bags", amount: nil, unit: nil).displayLabel, "Bin Bags")
     }
 
     func testAisleTaxonomy() {

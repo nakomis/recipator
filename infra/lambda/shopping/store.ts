@@ -166,6 +166,45 @@ export async function updateItem(
   }
 }
 
+export interface AisleCorrection {
+  itemText: string;
+  cacheKey: string;
+  fromAisle: string;
+  toAisle: string;
+  /** How the item had been categorised before the user moved it. */
+  source: string | null;
+}
+
+/**
+ * Record a user moving an item to a different aisle (RECP-49). Stored in the same
+ * table under a CORRECTION# sort key — a durable, queryable training signal for
+ * later mining to improve the rules/categoriser. Never surfaced in the list reads
+ * (they key on LIST#/LISTMETA# prefixes), so it can't leak into the UI.
+ */
+export async function recordCorrection(
+  userId: string,
+  listId: string,
+  itemId: string,
+  c: AisleCorrection,
+): Promise<void> {
+  const ts = new Date().toISOString();
+  await dynamo.send(
+    new PutCommand({
+      TableName: TABLE,
+      Item: {
+        pk: pk(userId),
+        sk: `CORRECTION#${ts}#${itemId}`,
+        type: 'aisle-correction',
+        userId,
+        listId,
+        itemId,
+        ...c,
+        createdAt: ts,
+      },
+    }),
+  );
+}
+
 export async function deleteItem(userId: string, listId: string, itemId: string): Promise<void> {
   await dynamo.send(
     new DeleteCommand({ TableName: TABLE, Key: { pk: pk(userId), sk: itemSk(listId, itemId) } }),
@@ -174,9 +213,17 @@ export async function deleteItem(userId: string, listId: string, itemId: string)
 
 /** Delete every ticked item in a list. Returns the number removed. */
 export async function clearTicked(userId: string, listId: string): Promise<number> {
-  const ticked = (await listItems(userId, listId)).filter((i) => i.checked);
-  for (let i = 0; i < ticked.length; i += 25) {
-    const batch = ticked.slice(i, i + 25);
+  return deleteItems(userId, listId, (await listItems(userId, listId)).filter((i) => i.checked));
+}
+
+/** Delete every item in a list (ticked or not). Returns the number removed. */
+export async function clearAll(userId: string, listId: string): Promise<number> {
+  return deleteItems(userId, listId, await listItems(userId, listId));
+}
+
+async function deleteItems(userId: string, listId: string, items: ShoppingItem[]): Promise<number> {
+  for (let i = 0; i < items.length; i += 25) {
+    const batch = items.slice(i, i + 25);
     await dynamo.send(
       new BatchWriteCommand({
         RequestItems: {
@@ -187,7 +234,7 @@ export async function clearTicked(userId: string, listId: string): Promise<numbe
       }),
     );
   }
-  return ticked.length;
+  return items.length;
 }
 
 function toItem(raw: Record<string, unknown>): ShoppingItem {

@@ -92,10 +92,13 @@ struct ShoppingItem: Codable, Identifiable {
         return ShoppingItem.tightUnits.contains(unit) ? "\(amount)\(unit)" : "\(amount) \(unit)"
     }
 
-    /// "Item (quantity)" or just "Item".
+    /// "Item (quantity)" or just "Item" — title-cased for display ("baby carrots" →
+    /// "Baby Carrots"). The stored `item` stays lower-case (it's the categoriser's
+    /// canonical form and the cache/grouping key).
     var displayLabel: String {
-        if let q = quantityLabel { return "\(item) (\(q))" }
-        return item
+        let name = item.capitalized
+        if let q = quantityLabel { return "\(name) (\(q))" }
+        return name
     }
 }
 
@@ -255,5 +258,9 @@ final class APIClient {
 
     func clearTickedShoppingItems() async throws {
         _ = try await request("/shopping/clear-ticked", method: "POST")
+    }
+
+    func clearAllShoppingItems() async throws {
+        _ = try await request("/shopping/clear-all", method: "POST")
     }
 }

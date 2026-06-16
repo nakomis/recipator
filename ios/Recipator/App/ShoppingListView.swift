@@ -10,6 +10,7 @@ struct ShoppingListView: View {
     @State private var isLoading = false
     @State private var isAdding = false
     @State private var error: String?
+    @State private var confirmClearAll = false
     @FocusState private var addFocused: Bool
 
     private var unchecked: [ShoppingItem] { items.filter { !$0.checked } }
@@ -50,9 +51,16 @@ struct ShoppingListView: View {
             }
             .navigationTitle("Shopping")
             .toolbar {
-                if !checked.isEmpty {
+                if !items.isEmpty {
                     ToolbarItem(placement: .topBarLeading) {
-                        Button("Clear Ticked", role: .destructive) { Task { await clearTicked() } }
+                        Menu {
+                            if !checked.isEmpty {
+                                Button("Clear Ticked", role: .destructive) { Task { await clearTicked() } }
+                            }
+                            Button("Clear All", role: .destructive) { confirmClearAll = true }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                        }
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
@@ -63,6 +71,13 @@ struct ShoppingListView: View {
                     Spacer()
                     Button("Done") { addFocused = false }
                 }
+            }
+            .confirmationDialog("Clear the whole list?", isPresented: $confirmClearAll,
+                                titleVisibility: .visible) {
+                Button("Clear All", role: .destructive) { Task { await clearAll() } }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This removes every item, ticked or not. This can't be undone.")
             }
             .alert("Error", isPresented: .constant(error != nil)) {
                 Button("OK") { error = nil }
@@ -153,6 +168,13 @@ struct ShoppingListView: View {
         .swipeActions(edge: .trailing) {
             Button("Delete", role: .destructive) { Task { await delete(item) } }
         }
+        .contextMenu {
+            Menu("Move to aisle") {
+                ForEach(Aisle.allCases.filter { $0 != Aisle.from(item.aisle) }, id: \.self) { aisle in
+                    Button(aisle.label) { Task { await move(item, to: aisle) } }
+                }
+            }
+        }
     }
 
     // MARK: - Actions
@@ -203,6 +225,37 @@ struct ShoppingListView: View {
         let previous = items
         items.removeAll { $0.checked }
         do { try await APIClient.shared.clearTickedShoppingItems() }
+        catch {
+            items = previous
+            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    private func clearAll() async {
+        let previous = items
+        items.removeAll()
+        do { try await APIClient.shared.clearAllShoppingItems() }
+        catch {
+            items = previous
+            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    /// Move an item to a different aisle. The server records the correction as a
+    /// training signal (RECP-49). Optimistic; reverts on failure.
+    private func move(_ item: ShoppingItem, to aisle: Aisle) async {
+        guard aisle.rawValue != item.aisle else { return }
+        let previous = items
+        if let idx = items.firstIndex(where: { $0.itemId == item.itemId }) {
+            let it = items[idx]
+            items[idx] = ShoppingItem(
+                itemId: it.itemId, listId: it.listId, raw: it.raw, item: it.item,
+                amount: it.amount, unit: it.unit, aisle: aisle.rawValue, checked: it.checked,
+                sortOrder: it.sortOrder, createdAt: it.createdAt, updatedAt: it.updatedAt,
+                source: it.source
+            )
+        }
+        do { _ = try await APIClient.shared.updateShoppingItem(id: item.itemId, aisle: aisle.rawValue) }
         catch {
             items = previous
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription

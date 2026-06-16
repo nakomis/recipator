@@ -33,7 +33,16 @@ export function groupByAisle(items: ShoppingItem[]): AisleGroup[] {
     .sort((a, b) => aisleOrder(a.aisleId) - aisleOrder(b.aisleId));
 }
 
-/** Display label for a line: "Item (quantity)" or just "Item". */
+/** Title-case a name for display: "baby carrots" → "Baby Carrots". */
+export function titleCase(s: string): string {
+  return s.replace(/(^|[\s-])(\p{L})/gu, (_, sep, ch) => sep + ch.toUpperCase());
+}
+
+/**
+ * Display label for a line: "Item (quantity)" or just "Item". The item name is
+ * title-cased for display; the stored value stays as the categoriser produced it.
+ */
 export function itemDisplay(item: string, quantity: string | null): string {
-  return quantity ? `${item} (${quantity})` : item;
+  const name = titleCase(item);
+  return quantity ? `${name} (${quantity})` : name;
 }

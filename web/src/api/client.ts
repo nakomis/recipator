@@ -251,3 +251,12 @@ export function useClearTicked() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: shoppingKey }),
   });
 }
+
+/** POST /shopping/clear-all — remove every item in the list. */
+export function useClearAll() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => request<{ removed: number }>('/shopping/clear-all', { method: 'POST' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: shoppingKey }),
+  });
+}

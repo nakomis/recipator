@@ -59,4 +59,10 @@ describe('itemDisplay', () => {
     expect(itemDisplay('Cream', '200ml')).toBe('Cream (200ml)');
     expect(itemDisplay('Cream', null)).toBe('Cream');
   });
+
+  it('title-cases the item name', () => {
+    expect(itemDisplay('baby carrots', null)).toBe('Baby Carrots');
+    expect(itemDisplay('greek yoghurt', '500g')).toBe('Greek Yoghurt (500g)');
+    expect(itemDisplay('extra-virgin olive oil', null)).toBe('Extra-Virgin Olive Oil');
+  });
 });

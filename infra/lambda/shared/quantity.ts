@@ -27,6 +27,8 @@ const UNIT_SYNONYMS: Record<string, string> = {
   ml: 'ml', milliliter: 'ml', millilitre: 'ml', millilitres: 'ml', milliliters: 'ml',
   cl: 'cl',
   l: 'l', litre: 'l', litres: 'l', liter: 'l', liters: 'l',
+  lb: 'lb', lbs: 'lb', pound: 'lb', pounds: 'lb',
+  oz: 'oz', ounce: 'oz', ounces: 'oz',
   pt: 'pt', pint: 'pt', pints: 'pt',
   cup: 'cup', cups: 'cup',
   tbsp: 'tbsp', tablespoon: 'tbsp', tablespoons: 'tbsp',

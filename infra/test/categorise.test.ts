@@ -32,6 +32,9 @@ describe('ruleAisle', () => {
     expect(ruleAisle('kidney beans')).toBe('cupboard');
     // "double cream" still lands in dairy.
     expect(ruleAisle('double cream')).toBe('dairy-eggs');
+    // "garlic powder" → condiments, not produce (where bare "garlic" lives) — RECP-49.
+    expect(ruleAisle('garlic powder')).toBe('condiments');
+    expect(ruleAisle('garlic')).toBe('produce');
   });
 
   it('returns null when nothing matches', () => {

@@ -4,12 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShoppingItem } from '@/api/client';
 import ShoppingList from './ShoppingList';
 
-const { itemsMock, addMock, updateMock, deleteMock, clearMock } = vi.hoisted(() => ({
+const { itemsMock, addMock, updateMock, deleteMock, clearMock, clearAllMock } = vi.hoisted(() => ({
   itemsMock: vi.fn(),
   addMock: vi.fn(),
   updateMock: vi.fn(),
   deleteMock: vi.fn(),
   clearMock: vi.fn(),
+  clearAllMock: vi.fn(),
 }));
 
 vi.mock('@/api/client', () => ({
@@ -18,6 +19,7 @@ vi.mock('@/api/client', () => ({
   useUpdateShoppingItem: updateMock,
   useDeleteShoppingItem: deleteMock,
   useClearTicked: clearMock,
+  useClearAll: clearAllMock,
 }));
 
 function item(over: Partial<ShoppingItem>): ShoppingItem {
@@ -41,16 +43,19 @@ const addMutate = vi.fn();
 const updateMutate = vi.fn();
 const deleteMutate = vi.fn();
 const clearMutate = vi.fn();
+const clearAllMutate = vi.fn();
 
 beforeEach(() => {
   addMutate.mockReset();
   updateMutate.mockReset();
   deleteMutate.mockReset();
   clearMutate.mockReset();
+  clearAllMutate.mockReset();
   addMock.mockReturnValue({ mutate: addMutate, isPending: false, isError: false });
   updateMock.mockReturnValue({ mutate: updateMutate });
   deleteMock.mockReturnValue({ mutate: deleteMutate });
   clearMock.mockReturnValue({ mutate: clearMutate, isPending: false });
+  clearAllMock.mockReturnValue({ mutate: clearAllMutate, isPending: false });
 });
 
 describe('ShoppingList', () => {
@@ -105,5 +110,24 @@ describe('ShoppingList', () => {
     expect(within(ticked).getByText('Beans')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /clear ticked/i }));
     expect(clearMutate).toHaveBeenCalled();
+  });
+
+  it('clears the whole list only after confirmation', async () => {
+    itemsMock.mockReturnValue({
+      data: [item({ itemId: 'a', item: 'Apples' })],
+      isLoading: false,
+      isError: false,
+    });
+    const confirm = vi.spyOn(window, 'confirm');
+    render(<ShoppingList />);
+
+    confirm.mockReturnValueOnce(false);
+    await userEvent.click(screen.getByRole('button', { name: /clear all/i }));
+    expect(clearAllMutate).not.toHaveBeenCalled();
+
+    confirm.mockReturnValueOnce(true);
+    await userEvent.click(screen.getByRole('button', { name: /clear all/i }));
+    expect(clearAllMutate).toHaveBeenCalled();
+    confirm.mockRestore();
   });
 });

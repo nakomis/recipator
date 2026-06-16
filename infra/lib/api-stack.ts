@@ -433,6 +433,7 @@ export class ApiStack extends cdk.Stack {
     api.addRoutes({ path: '/shopping/items',         methods: [apigwv2.HttpMethod.GET, apigwv2.HttpMethod.POST], integration: shoppingInt });
     api.addRoutes({ path: '/shopping/items/{itemId}', methods: [apigwv2.HttpMethod.PATCH, apigwv2.HttpMethod.DELETE], integration: shoppingInt });
     api.addRoutes({ path: '/shopping/clear-ticked',  methods: [apigwv2.HttpMethod.POST],   integration: shoppingInt });
+    api.addRoutes({ path: '/shopping/clear-all',     methods: [apigwv2.HttpMethod.POST],   integration: shoppingInt });
 
     // ── Route53 alias → API Gateway custom domain ─────────────────────────────
     new route53.ARecord(this, 'ApiDnsRecord', {

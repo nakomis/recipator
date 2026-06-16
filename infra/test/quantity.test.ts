@@ -19,6 +19,12 @@ describe('parseQuantity', () => {
     expect(parseQuantity('1/2 cup cream')).toEqual({ amount: '1/2', unit: 'cup', itemText: 'cream' });
   });
 
+  it('recognises imperial weights, including with no space (RECP-48)', () => {
+    expect(parseQuantity('1lb beef mince')).toEqual({ amount: '1', unit: 'lb', itemText: 'beef mince' });
+    expect(parseQuantity('2 lbs potatoes')).toEqual({ amount: '2', unit: 'lb', itemText: 'potatoes' });
+    expect(parseQuantity('8oz cheese')).toEqual({ amount: '8', unit: 'oz', itemText: 'cheese' });
+  });
+
   it('treats a non-unit word after the number as part of the item', () => {
     expect(parseQuantity('4 large eggs')).toEqual({ amount: '4', unit: null, itemText: 'large eggs' });
   });

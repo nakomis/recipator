@@ -3,6 +3,7 @@ import { type FormEvent, useMemo, useState } from 'react';
 import {
   type ShoppingItem,
   useAddShoppingItem,
+  useClearAll,
   useClearTicked,
   useDeleteShoppingItem,
   useShoppingItems,
@@ -61,6 +62,7 @@ function ShoppingList() {
   const update = useUpdateShoppingItem();
   const del = useDeleteShoppingItem();
   const clear = useClearTicked();
+  const clearAll = useClearAll();
   const [text, setText] = useState('');
 
   const all = useMemo(() => items.data ?? [], [items.data]);
@@ -78,6 +80,15 @@ function ShoppingList() {
   const toggle = (item: ShoppingItem) =>
     update.mutate({ itemId: item.itemId, patch: { checked: !item.checked } });
   const remove = (item: ShoppingItem) => del.mutate(item.itemId);
+  const onClearAll = () => {
+    if (
+      window.confirm(
+        "Clear the whole list? This removes every item, ticked or not, and can't be undone.",
+      )
+    ) {
+      clearAll.mutate();
+    }
+  };
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -114,6 +125,14 @@ function ShoppingList() {
 
       {items.data && all.length === 0 && (
         <p className="text-muted-foreground text-sm">Your list is empty — add something above.</p>
+      )}
+
+      {all.length > 0 && (
+        <div className="mb-4 flex justify-end">
+          <Button variant="ghost" size="sm" onClick={onClearAll} disabled={clearAll.isPending}>
+            <Trash2 className="size-4" /> Clear all
+          </Button>
+        </div>
       )}
 
       {groups.map((group) => (
