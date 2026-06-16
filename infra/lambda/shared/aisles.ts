@@ -1,9 +1,8 @@
-// Canonical supermarket aisle taxonomy — the SINGLE SOURCE OF TRUTH (RECP-36).
+// Canonical supermarket aisle taxonomy — the SINGLE SOURCE OF TRUTH (RECP-36, RECP-49).
 //
-// This is mirrored, in lockstep, in three places. If you change this list you MUST
-// update the other two (the ids and their order must match exactly):
-//   - web/src/lib/aisles.ts        (TypeScript, web app)
-//   - ios/Shared/Aisle.swift       (Swift enum, iOS app + on-device Foundation Models)
+// The data now lives in ./data/aisles.json, imported here AND by the web app
+// (web/src/lib/aisles.ts) and bundled into the iOS app (ios/Shared/Aisle.swift loads it,
+// guarded by a parity test) — so there is one physical list, not three hand-kept copies.
 //
 // The `id` is the stable value persisted on each item and the value the LLM is
 // constrained to emit. The ORDER is the grouping/display order — it follows a
@@ -13,6 +12,8 @@
 // User-customisable remapping/reordering is a LATER story (RECP-34 backlog); this
 // pins the canonical set only.
 
+import aislesData from './data/aisles.json';
+
 export interface Aisle {
   /** Stable id — persisted on items and emitted by the categoriser. Never reuse/renumber. */
   id: string;
@@ -20,25 +21,7 @@ export interface Aisle {
   label: string;
 }
 
-export const AISLES: readonly Aisle[] = [
-  { id: 'produce', label: 'Fruit & Vegetables' },
-  { id: 'bakery', label: 'Bakery' },
-  { id: 'meat-fish', label: 'Meat & Fish' },
-  { id: 'dairy-eggs', label: 'Dairy & Eggs' },
-  { id: 'chilled', label: 'Chilled & Deli' },
-  { id: 'frozen', label: 'Frozen' },
-  { id: 'cupboard', label: 'Tins, Jars & Packets' },
-  { id: 'pasta-rice-grains', label: 'Pasta, Rice & Grains' },
-  { id: 'baking', label: 'Baking & Home Baking' },
-  { id: 'condiments', label: 'Condiments & Sauces' },
-  { id: 'snacks', label: 'Snacks & Confectionery' },
-  { id: 'drinks', label: 'Drinks' },
-  { id: 'world-foods', label: 'World Foods' },
-  { id: 'health-beauty', label: 'Health & Beauty' },
-  { id: 'household', label: 'Household & Cleaning' },
-  { id: 'baby-pet', label: 'Baby & Pet' },
-  { id: 'other', label: 'Other' },
-] as const;
+export const AISLES: readonly Aisle[] = aislesData;
 
 /** The explicit uncategorised bucket — items default here, and it always sorts last. */
 export const OTHER_AISLE_ID = 'other';
