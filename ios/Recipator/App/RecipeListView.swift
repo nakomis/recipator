@@ -5,6 +5,7 @@ private let everyoneTag = "__everyone__"
 
 struct RecipeListView: View {
     @EnvironmentObject private var auth: AuthService
+    @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var allRecipes: [RecipeListItem] = []
     @State private var selected: RecipeDetail?
     @State private var isLoading = false
@@ -60,8 +61,14 @@ struct RecipeListView: View {
         }
         .padding(2)
         .background(Color(.tertiarySystemFill), in: Capsule())
-        .frame(maxWidth: 360)
+        // Size to content so names never truncate; the toolbar (iPad) gives it room, and on
+        // iPhone it sits on its own row that scrolls if it can't fit (RECP-51).
+        .fixedSize(horizontal: true, vertical: false)
     }
+
+    /// True on iPhone-width layouts, where the picker doesn't fit in the toolbar alongside the
+    /// refresh / sandbox / profile items, so it gets its own row below the search bar.
+    private var ownerPickerNeedsOwnRow: Bool { hSizeClass == .compact }
 
     @ViewBuilder
     private func ownerSegment(title: String, userId: String?, tag: String) -> some View {
@@ -109,27 +116,37 @@ struct RecipeListView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isSearching {
-                    searchContent
-                } else if isLoading && allRecipes.isEmpty {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if displayedRecipes.isEmpty {
-                    ContentUnavailableView(
-                        "No Recipes Yet",
-                        systemImage: "fork.knife",
-                        description: Text("Share a recipe URL from Safari or Chrome to save it here.")
-                    )
-                } else {
-                    recipeList(displayedRecipes, refreshable: true)
+            VStack(spacing: 0) {
+                // On iPhone the picker gets its own full-width row (it won't fit in the toolbar);
+                // on iPad it lives in the toolbar's principal slot — see below.
+                if isInGroup && ownerPickerNeedsOwnRow {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        ownerPicker.padding(.horizontal)
+                    }
+                    .padding(.bottom, 6)
+                }
+                Group {
+                    if isSearching {
+                        searchContent
+                    } else if isLoading && allRecipes.isEmpty {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if displayedRecipes.isEmpty {
+                        ContentUnavailableView(
+                            "No Recipes Yet",
+                            systemImage: "fork.knife",
+                            description: Text("Share a recipe URL from Safari or Chrome to save it here.")
+                        )
+                    } else {
+                        recipeList(displayedRecipes, refreshable: true)
+                    }
                 }
             }
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always),
                         prompt: "Search recipes")
             .navigationTitle("Recipator")
             .toolbar {
-                if isInGroup {
+                if isInGroup && !ownerPickerNeedsOwnRow {
                     ToolbarItem(placement: .principal) {
                         ownerPicker
                     }
