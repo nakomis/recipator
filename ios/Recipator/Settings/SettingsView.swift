@@ -98,7 +98,8 @@ struct SettingsView: View {
                 guard let item else { return }
                 Task {
                     if let data = try? await item.loadTransferable(type: Data.self) {
-                        profile.setImage(data)
+                        // Saves locally instantly, then uploads to the backend with retry (RECP-51).
+                        AvatarSync.shared.setAndUpload(data)
                     }
                 }
             }

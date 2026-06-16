@@ -227,6 +227,7 @@ struct RecipeListView: View {
     @MainActor
     private func loadConfig() async {
         groupMembers = (try? await APIClient.shared.getConfig()) ?? []
+        AvatarCache.shared.update(from: groupMembers)
     }
 
     @MainActor
@@ -293,6 +294,9 @@ struct RecipeRow: View {
 
                 HStack(spacing: 6) {
                     if showOwner, let name = recipe.ownerFirstName {
+                        if let uid = recipe.userId {
+                            MemberAvatarView(userId: uid, size: 16)
+                        }
                         Text(name)
                             .font(.caption.bold())
                             .foregroundStyle(Color.accentColor)

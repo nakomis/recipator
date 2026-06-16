@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct RecipatorApp: App {
     @StateObject private var auth = AuthService()
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         // Force dark mode app-wide so the Cognito login page always uses the One Dark theme.
@@ -24,6 +25,17 @@ struct RecipatorApp: App {
             // unmistakable; production keeps the default tint.
             .tint(AppConfig.isSandbox ? .green : nil)
             .task { await auth.restore() }
+            // Retry pending avatar upload + refresh member avatars when connectivity
+            // returns (RECP-51). Registered once for the app's lifetime.
+            .task {
+                Connectivity.shared.onBecameOnline {
+                    Task { await AvatarSync.shared.uploadPending(); AvatarCache.shared.retry() }
+                }
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await AvatarSync.shared.uploadPending(); AvatarCache.shared.retry() }
         }
     }
 }

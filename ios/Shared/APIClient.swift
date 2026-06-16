@@ -25,6 +25,8 @@ struct RecipeListItem: Codable, Identifiable {
 struct GroupMember: Codable {
     let userId: String
     let displayName: String
+    /// Presigned download URL for the member's avatar, or nil if none is set (RECP-51).
+    let avatarUrl: String?
 }
 
 /// Response of GET /model — describes the current on-device embedding model.
@@ -196,6 +198,27 @@ final class APIClient {
         let data = try await request("/config")
         struct Response: Decodable { let groupMembers: [GroupMember] }
         return (try? JSONDecoder().decode(Response.self, from: data))?.groupMembers ?? []
+    }
+
+    /// Upload the caller's own avatar (RECP-51). Asks the API for a presigned PUT URL,
+    /// then sends the JPEG straight to S3 (bytes never pass through Lambda). Throws on any
+    /// failure so the caller can keep the pending marker and retry later.
+    func uploadAvatar(jpeg: Data) async throws {
+        let data = try await request("/config/avatar", method: "POST")
+        struct PresignedPut: Decodable { let url: String; let contentType: String }
+        guard let info = try? JSONDecoder().decode(PresignedPut.self, from: data),
+              let url = URL(string: info.url) else {
+            throw APIError.server(0, "Bad avatar upload URL")
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PUT"
+        // The presigned URL signs Content-Type, so the PUT must send exactly the same value.
+        req.setValue(info.contentType, forHTTPHeaderField: "Content-Type")
+        let (_, response) = try await URLSession.shared.upload(for: req, from: jpeg)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status) else {
+            throw APIError.server(status, "Avatar upload failed")
+        }
     }
 
     func getModelInfo() async throws -> ModelInfo {
