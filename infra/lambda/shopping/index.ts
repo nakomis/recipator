@@ -77,7 +77,12 @@ export async function handler(
         if (!text) return err(400, 'text is required');
         await ensureDefaultList(userId);
 
-        const cat = await categorise(text, { llmCategorise, cacheGet, cachePut });
+        // An on-device categorisation (Foundation Models, RECP-35) may accompany the add;
+        // honoured only if it's a valid aisle id, otherwise ignored. `noLlm` (offline-only
+        // mode) tells the server not to fall back to the cloud LLM.
+        const deviceAisle = typeof body.aisle === 'string' && isAisleId(body.aisle) ? body.aisle : null;
+        const allowLlm = body.noLlm !== true;
+        const cat = await categorise(text, { llmCategorise, cacheGet, cachePut }, deviceAisle, allowLlm);
         const now = new Date().toISOString();
         const item: ShoppingItem = {
           itemId: randomUUID(),
@@ -107,7 +112,7 @@ export async function handler(
           return current ? ok({ item: current }) : err(404, 'Item not found');
         }
         // If the user is moving the item to a different aisle, capture the before-state
-        // so we can record the correction as a training signal (RECP-49).
+        // so we can record the correction as a training signal (RECP-34; mined later).
         const before = patch.aisle !== undefined ? await getItem(userId, listId, itemId) : null;
         const updated = await updateItem(userId, listId, itemId, patch);
         if (!updated) return err(404, 'Item not found');

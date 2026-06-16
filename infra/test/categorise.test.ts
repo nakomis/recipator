@@ -86,6 +86,36 @@ describe('categorise', () => {
     });
   });
 
+  it('uses a valid on-device aisle instead of the LLM, and caches it (RECP-35)', async () => {
+    const llmCategorise = jest.fn();
+    const cachePut = jest.fn().mockResolvedValue(undefined);
+    const result = await categorise(
+      'sauerkraut',
+      { llmCategorise, cacheGet: async () => null, cachePut },
+      'world-foods',
+    );
+    expect(result).toMatchObject({ item: 'sauerkraut', aisle: 'world-foods', source: 'device' });
+    expect(llmCategorise).not.toHaveBeenCalled();
+    expect(cachePut).toHaveBeenCalledWith('sauerkraut', { aisle: 'world-foods', item: 'sauerkraut' });
+  });
+
+  it('ignores an on-device aisle when rules already match', async () => {
+    const result = await categorise('milk', {}, 'world-foods');
+    expect(result).toMatchObject({ aisle: 'dairy-eggs', source: 'rules' });
+  });
+
+  it('skips the LLM and falls back to Other in offline-only mode (RECP-35)', async () => {
+    const llmCategorise = jest.fn().mockResolvedValue({ aisle: 'world-foods', item: 'sauerkraut' });
+    const result = await categorise(
+      'sauerkraut',
+      { llmCategorise, cacheGet: async () => null },
+      null,
+      false, // allowLlm = false → offline only
+    );
+    expect(result).toMatchObject({ aisle: 'other', source: 'fallback' });
+    expect(llmCategorise).not.toHaveBeenCalled();
+  });
+
   it('coerces an invalid LLM aisle to Other', async () => {
     const llmCategorise = jest.fn().mockResolvedValue({ aisle: 'not-a-real-aisle', item: 'thing' });
     const result = await categorise('mystery thing', { llmCategorise, cacheGet: async () => null });

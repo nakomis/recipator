@@ -13,11 +13,11 @@
 // never by the LLM (RECP-40). Item labels keep distinguishing words ("double cream"
 // is not collapsed to "cream") — see the RECP-35 decision comments.
 
-import { OTHER_AISLE_ID, toAisleId } from './aisles';
+import { OTHER_AISLE_ID, isAisleId, toAisleId } from './aisles';
 import { ruleAisle } from './categorise-rules';
 import { parseQuantity } from './quantity';
 
-export type CategorisationSource = 'rules' | 'cache' | 'llm' | 'fallback';
+export type CategorisationSource = 'rules' | 'cache' | 'device' | 'llm' | 'fallback';
 
 export interface CategorisedItem {
   /** Clean product label, distinguishing words preserved (e.g. "double cream"). */
@@ -48,7 +48,17 @@ export function cacheKey(itemText: string): string {
     .trim();
 }
 
-export async function categorise(raw: string, deps: CategoriseDeps = {}): Promise<CategorisedItem> {
+export async function categorise(
+  raw: string,
+  deps: CategoriseDeps = {},
+  /** An aisle already chosen on-device (Foundation Models, RECP-35). Used for the long
+   *  tail in place of a Bedrock call — consulted after rules/cache so deterministic
+   *  matches still win, and cached so web/other users benefit too. */
+  deviceAisle?: string | null,
+  /** When false ("offline only"), never call the cloud LLM — anything rules/cache/device
+   *  can't place falls straight to Other. */
+  allowLlm = true,
+): Promise<CategorisedItem> {
   const { amount, unit, itemText } = parseQuantity(raw);
   const label = cleanLabel(itemText) || cleanLabel(raw);
   const key = cacheKey(itemText || raw);
@@ -71,8 +81,22 @@ export async function categorise(raw: string, deps: CategoriseDeps = {}): Promis
     }
   }
 
-  // 3. LLM — the long tail, at most once per novel item (result is cached).
-  if (deps.llmCategorise) {
+  // 3. On-device result — the client already classified this with Foundation Models,
+  //    so we skip the paid Bedrock call entirely. Cache it for everyone else.
+  if (deviceAisle && isAisleId(deviceAisle)) {
+    if (deps.cachePut) {
+      try {
+        await deps.cachePut(key, { aisle: deviceAisle, item: label });
+      } catch {
+        /* cache write is best-effort */
+      }
+    }
+    return { item: label, amount, unit, aisle: deviceAisle, source: 'device' };
+  }
+
+  // 4. LLM — the long tail, at most once per novel item (result is cached). Skipped
+  //    entirely in offline-only mode.
+  if (allowLlm && deps.llmCategorise) {
     const res = await deps.llmCategorise(itemText || raw);
     if (res) {
       const aisle = toAisleId(res.aisle);
@@ -88,6 +112,6 @@ export async function categorise(raw: string, deps: CategoriseDeps = {}): Promis
     }
   }
 
-  // 4. Explicit fallback — uncategorised, editable by the user.
+  // 5. Explicit fallback — uncategorised, editable by the user.
   return { item: label, amount, unit, aisle: OTHER_AISLE_ID, source: 'fallback' };
 }

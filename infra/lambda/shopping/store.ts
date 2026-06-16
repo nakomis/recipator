@@ -176,7 +176,7 @@ export interface AisleCorrection {
 }
 
 /**
- * Record a user moving an item to a different aisle (RECP-49). Stored in the same
+ * Record a user moving an item to a different aisle (RECP-34). Stored in the same
  * table under a CORRECTION# sort key — a durable, queryable training signal for
  * later mining to improve the rules/categoriser. Never surfaced in the list reads
  * (they key on LIST#/LISTMETA# prefixes), so it can't leak into the UI.

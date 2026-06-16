@@ -125,7 +125,7 @@ struct RecipeListView: View {
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    AccountMenu()
+                    ProfileButton()
                 }
             }
             .alert("Error", isPresented: .constant(error != nil), actions: {

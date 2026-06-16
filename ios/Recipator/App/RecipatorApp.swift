@@ -19,6 +19,7 @@ struct RecipatorApp: App {
                 }
             }
             .environmentObject(auth)
+            .environmentObject(ProfileStore.shared)
             // Sandbox builds get a green accent throughout so the environment is
             // unmistakable; production keeps the default tint.
             .tint(AppConfig.isSandbox ? .green : nil)
