@@ -124,22 +124,8 @@ struct RecipeListView: View {
                             .accessibilityLabel("Sandbox environment")
                     }
                 }
-                ToolbarItem(placement: .bottomBar) {
-                    Text(Bundle.main.versionLabel)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                        .fixedSize()   // keep on one line; let the glass button widen to fit
-                }
-
                 ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Text(auth.displayName ?? "Signed in")
-                        Divider()
-                        Button("Sign Out", role: .destructive) { auth.signOut() }
-                    } label: {
-                        Image(systemName: "person.circle")
-                    }
+                    AccountMenu()
                 }
             }
             .alert("Error", isPresented: .constant(error != nil), actions: {

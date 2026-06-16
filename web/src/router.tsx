@@ -3,6 +3,7 @@ import Home from '@/routes/Home';
 import LoggedIn from '@/routes/LoggedIn';
 import Logout from '@/routes/Logout';
 import RecipeDetail from '@/routes/RecipeDetail';
+import Shopping from '@/routes/Shopping';
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
@@ -32,7 +33,19 @@ const recipeRoute = createRoute({
   component: RecipeDetail,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, loggedInRoute, logoutRoute, recipeRoute]);
+const shoppingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/shopping',
+  component: Shopping,
+});
+
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  loggedInRoute,
+  logoutRoute,
+  recipeRoute,
+  shoppingRoute,
+]);
 
 export const router = createRouter({ routeTree });
 

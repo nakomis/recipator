@@ -44,6 +44,8 @@ const apiStack = new ApiStack(app, 'RecipatorApiStack', {
   deployEnv,
   recipesTable: dataStack.recipesTable,
   failuresTable: dataStack.failuresTable,
+  shoppingTable: dataStack.shoppingTable,
+  categoryCacheTable: dataStack.categoryCacheTable,
   modelsBucket: dataStack.modelsBucket,
   certificate: certStack.certificate,
   zone: certStack.zone,
