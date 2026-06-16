@@ -13,8 +13,6 @@ struct ShoppingListView: View {
     @State private var confirmClearAll = false
     @FocusState private var addFocused: Bool
     @AppStorage(SettingsKeys.showBadges) private var showBadges = AppConfig.isSandbox
-    @AppStorage(SettingsKeys.offlineOnly) private var offlineOnly = false
-    @AppStorage(SettingsKeys.cloudOnCellular) private var cloudOnCellular = true
 
     private var unchecked: [ShoppingItem] { items.filter { !$0.checked } }
     private var checked: [ShoppingItem] { items.filter { $0.checked } }
@@ -182,11 +180,17 @@ struct ShoppingListView: View {
 
     // MARK: - Actions
 
+    private let repo = ShoppingRepository.shared
+
     private func load() async {
+        // The local DB is the source of truth — read it instantly (works offline). The first time
+        // only (empty DB + online) seed from the server snapshot, then re-read (RECP-49 B2).
+        items = repo.items()
+        guard items.isEmpty else { return }
         isLoading = true
-        defer { isLoading = false }
-        do { items = try await APIClient.shared.listShoppingItems() }
-        catch { self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription }
+        await repo.seedIfEmptyFromServer()
+        items = repo.items()
+        isLoading = false
     }
 
     private func add() async {
@@ -195,93 +199,42 @@ struct ShoppingListView: View {
         isAdding = true
         defer { isAdding = false }
         do {
-            // Run the full on-device cascade (rules → Foundation Models) first (RECP-49). When it
-            // resolves an aisle the server stores the decision verbatim and skips its own cascade;
-            // when it returns nil the server decides — using the cloud LLM only if it's permitted.
-            // Cloud LLM gate: allowed unless offline-only, and on mobile data only when the user
-            // has left "Cloud sorting on mobile data" on.
-            let local = await Categoriser.categorise(text)
-            let allowRemote = !offlineOnly && (Connectivity.shared.isWiFi || cloudOnCellular)
-            let item = try await APIClient.shared.addShoppingItem(
-                text: text, aisle: local.aisle, source: local.source, allowLlm: allowRemote
-            )
-            items.append(item)
+            // Categorise on-device (cache → rules → Foundation Models) and add locally — instant
+            // and fully offline (RECP-49). Anything on-device can't place lands in Other; the
+            // background sync (Phase B3) refines it via the cloud LLM when permitted + online.
+            _ = try await repo.add(text)
+            items = repo.items()
             newItem = ""
             addFocused = true   // keep the keyboard up for rapid entry
         } catch {
-            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            self.error = error.localizedDescription
         }
     }
 
     private func toggle(_ item: ShoppingItem) async {
-        // Optimistic flip for instant feedback; reconcile/revert on the server's response.
-        setChecked(item.itemId, !item.checked)
-        do { _ = try await APIClient.shared.updateShoppingItem(id: item.itemId, checked: !item.checked) }
-        catch {
-            setChecked(item.itemId, item.checked)
-            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
-        }
+        do { try repo.toggle(item); items = repo.items() }
+        catch { self.error = error.localizedDescription }
     }
 
     private func delete(_ item: ShoppingItem) async {
-        let previous = items
-        items.removeAll { $0.itemId == item.itemId }
-        do { try await APIClient.shared.deleteShoppingItem(id: item.itemId) }
-        catch {
-            items = previous
-            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
-        }
+        do { try repo.delete(item); items = repo.items() }
+        catch { self.error = error.localizedDescription }
     }
 
     private func clearTicked() async {
-        let previous = items
-        items.removeAll { $0.checked }
-        do { try await APIClient.shared.clearTickedShoppingItems() }
-        catch {
-            items = previous
-            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
-        }
+        do { try repo.clearTicked(); items = repo.items() }
+        catch { self.error = error.localizedDescription }
     }
 
     private func clearAll() async {
-        let previous = items
-        items.removeAll()
-        do { try await APIClient.shared.clearAllShoppingItems() }
-        catch {
-            items = previous
-            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
-        }
+        do { try repo.clearAll(); items = repo.items() }
+        catch { self.error = error.localizedDescription }
     }
 
-    /// Move an item to a different aisle. The server records the correction as a
-    /// training signal (RECP-34; mined later). Optimistic; reverts on failure.
+    /// Move an item to a different aisle. The correction is remembered in the local cache so the
+    /// next add of the same item text lands there too — even offline (RECP-34/49).
     private func move(_ item: ShoppingItem, to aisle: Aisle) async {
-        guard aisle.rawValue != item.aisle else { return }
-        let previous = items
-        if let idx = items.firstIndex(where: { $0.itemId == item.itemId }) {
-            let it = items[idx]
-            items[idx] = ShoppingItem(
-                itemId: it.itemId, listId: it.listId, raw: it.raw, item: it.item,
-                amount: it.amount, unit: it.unit, aisle: aisle.rawValue, checked: it.checked,
-                sortOrder: it.sortOrder, createdAt: it.createdAt, updatedAt: it.updatedAt,
-                source: it.source
-            )
-        }
-        do { _ = try await APIClient.shared.updateShoppingItem(id: item.itemId, aisle: aisle.rawValue) }
-        catch {
-            items = previous
-            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
-        }
-    }
-
-    private func setChecked(_ id: String, _ checked: Bool) {
-        guard let idx = items.firstIndex(where: { $0.itemId == id }) else { return }
-        let it = items[idx]
-        items[idx] = ShoppingItem(
-            itemId: it.itemId, listId: it.listId, raw: it.raw, item: it.item,
-            amount: it.amount, unit: it.unit, aisle: it.aisle, checked: checked,
-            sortOrder: it.sortOrder, createdAt: it.createdAt, updatedAt: it.updatedAt,
-            source: it.source
-        )
+        do { try repo.move(item, to: aisle); items = repo.items() }
+        catch { self.error = error.localizedDescription }
     }
 }
