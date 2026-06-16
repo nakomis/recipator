@@ -48,6 +48,46 @@ struct RecipeListView: View {
         return allRecipes.filter { $0.userId == selectedUserId }
     }
 
+    // Owner filter — a segmented-style control showing each member's avatar (RECP-51) and first
+    // name, plus an "Everyone" option. Custom (not a `.segmented` Picker) because that style
+    // can't render the member avatars.
+    private var ownerPicker: some View {
+        HStack(spacing: 2) {
+            ForEach(owners, id: \.userId) { owner in
+                ownerSegment(title: owner.firstName, userId: owner.userId, tag: owner.userId)
+            }
+            ownerSegment(title: "Everyone", userId: nil, tag: everyoneTag)
+        }
+        .padding(2)
+        .background(Color(.tertiarySystemFill), in: Capsule())
+        .frame(maxWidth: 360)
+    }
+
+    @ViewBuilder
+    private func ownerSegment(title: String, userId: String?, tag: String) -> some View {
+        let selected = selectedUserId == tag
+        Button {
+            selectedUserId = tag
+        } label: {
+            HStack(spacing: 5) {
+                if let userId {
+                    MemberAvatarView(userId: userId, size: 22)
+                }
+                Text(title)
+                    .font(.subheadline.weight(selected ? .semibold : .regular))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(selected ? Color(.systemBackground) : .clear, in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(selected ? Color.primary : .secondary)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
     private var trimmedQuery: String {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -91,14 +131,7 @@ struct RecipeListView: View {
             .toolbar {
                 if isInGroup {
                     ToolbarItem(placement: .principal) {
-                        Picker("", selection: $selectedUserId) {
-                            ForEach(owners, id: \.userId) { owner in
-                                Text(owner.firstName).tag(owner.userId)
-                            }
-                            Text("Everyone").tag(everyoneTag)
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(minWidth: 200, maxWidth: 320)
+                        ownerPicker
                     }
                 }
                 ToolbarItem(placement: .topBarLeading) {
