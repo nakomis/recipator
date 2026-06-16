@@ -11,6 +11,7 @@ export class DataStack extends cdk.Stack {
   readonly recipesTable: dynamodb.Table;
   readonly failuresTable: dynamodb.Table;
   readonly modelsBucket: s3.Bucket;
+  readonly avatarsBucket: s3.Bucket;
   readonly shoppingTable: dynamodb.Table;
   readonly categoryCacheTable: dynamodb.Table;
 
@@ -52,6 +53,18 @@ export class DataStack extends cdk.Stack {
       autoDeleteObjects: !isProd,
     });
 
+    // member avatars (RECP-51): per-member profile pictures shown across household views.
+    // Private; objects keyed by user, avatars/{userId}.jpg. GET /config presigns a download
+    // URL per member; POST /config/avatar issues a presigned PUT for the caller's own avatar.
+    this.avatarsBucket = new s3.Bucket(this, 'AvatarsBucket', {
+      bucketName: `recipator-avatars-${deployEnv}`,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      removalPolicy,
+      autoDeleteObjects: !isProd,
+    });
+
     // shopping lists (RECP-37): single-table, list-aware from day one.
     //   PK = USER#{userId}
     //   SK = LISTMETA#{listId}            -> list metadata {name, isDefault, sortOrder}
@@ -79,6 +92,7 @@ export class DataStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'RecipesTableName', { value: this.recipesTable.tableName });
     new cdk.CfnOutput(this, 'FailuresTableName', { value: this.failuresTable.tableName });
     new cdk.CfnOutput(this, 'ModelsBucketName', { value: this.modelsBucket.bucketName });
+    new cdk.CfnOutput(this, 'AvatarsBucketName', { value: this.avatarsBucket.bucketName });
     new cdk.CfnOutput(this, 'ShoppingTableName', { value: this.shoppingTable.tableName });
     new cdk.CfnOutput(this, 'CategoryCacheTableName', { value: this.categoryCacheTable.tableName });
   }
