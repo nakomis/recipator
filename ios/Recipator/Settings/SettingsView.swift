@@ -26,7 +26,7 @@ struct SettingsView: View {
             Form {
                 Section {
                     VStack(spacing: 12) {
-                        AvatarView(data: profile.imageData, size: 96)
+                        MeAvatarView(localData: profile.imageData, userId: auth.userId, size: 96)
                         PhotosPicker(
                             profile.imageData == nil ? "Add photo" : "Change photo",
                             selection: $photoItem,
@@ -111,11 +111,12 @@ struct SettingsView: View {
 /// old person.circle dropdown menu.
 struct ProfileButton: View {
     @EnvironmentObject private var profile: ProfileStore
+    @EnvironmentObject private var auth: AuthService
     @State private var showing = false
 
     var body: some View {
         Button { showing = true } label: {
-            AvatarView(data: profile.imageData, size: 28)
+            MeAvatarView(localData: profile.imageData, userId: auth.userId, size: 28)
         }
         .accessibilityLabel("Profile and settings")
         .sheet(isPresented: $showing) { SettingsView() }

@@ -88,3 +88,36 @@ struct MemberAvatarView: View {
         }
     }
 }
+
+/// The current user's own avatar (RECP-51). Prefers the locally-set photo — it's instant and
+/// reflects a just-picked image before it has finished uploading — and otherwise falls back to
+/// the avatar synced from the backend via `AvatarCache`, so a photo set on one device also shows
+/// on the user's other devices. Placeholder until either is available.
+struct MeAvatarView: View {
+    let localData: Data?
+    let userId: String?
+    var size: CGFloat = 30
+    @ObservedObject private var cache = AvatarCache.shared
+
+    var body: some View {
+        if let localData, let image = UIImage(data: localData) {
+            circular(Image(uiImage: image))
+        } else if let userId, let img = cache.image(for: userId) {
+            circular(Image(uiImage: img))
+        } else {
+            Image(systemName: "person.circle.fill")
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func circular(_ image: Image) -> some View {
+        image
+            .resizable()
+            .scaledToFill()
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+    }
+}
