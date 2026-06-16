@@ -210,15 +210,38 @@ final class ShoppingStore {
         }
     }
 
-    // MARK: - Seeding (server snapshot → local, no outbox)
+    /// Remove an outbox entry once it has been pushed to the server (RECP-49 B3).
+    func removeOutbox(seq: Int64) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "DELETE FROM outbox WHERE seq = ?", arguments: [seq])
+        }
+    }
+
+    // MARK: - Seeding & sync (server snapshot → local, no outbox)
 
     /// Replace the local item set with a server snapshot. Used to seed an empty DB on first
-    /// launch; carries no outbox entries because it isn't a local mutation. Phase B3's pull
-    /// will extend this into a reconciling merge.
+    /// launch; carries no outbox entries because it isn't a local mutation.
     func replaceAllFromServer(_ items: [ShoppingItem]) throws {
         try dbQueue.write { db in
             try ShoppingItem.deleteAll(db)
             for item in items { try item.insert(db) }
+        }
+    }
+
+    /// Reconcile a server snapshot into the local DB after the outbox has been pushed (RECP-49 B3).
+    /// Items still referenced by a pending outbox op are left untouched (a local change that hasn't
+    /// been pushed yet wins); everything else is made to match the server — upserting present rows
+    /// and deleting rows the server no longer has. With an empty outbox this is a full replace.
+    func reconcile(serverItems: [ShoppingItem], pendingItemIds: Set<String>) throws {
+        try dbQueue.write { db in
+            let serverIds = Set(serverItems.map(\.itemId))
+            for item in serverItems where !pendingItemIds.contains(item.itemId) {
+                try item.save(db)
+            }
+            let localIds = try String.fetchAll(db, sql: "SELECT itemId FROM shoppingItem")
+            for id in localIds where !serverIds.contains(id) && !pendingItemIds.contains(id) {
+                _ = try ShoppingItem.deleteOne(db, key: id)
+            }
         }
     }
 

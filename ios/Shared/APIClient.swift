@@ -251,9 +251,11 @@ final class APIClient {
     /// device ran the on-device cascade (rules → Foundation Models) and the server stores
     /// the decision verbatim. nil lets the server decide. `allowLlm == false` (offline-only,
     /// or no permitted network) tells the server not to use the cloud LLM.
-    func addShoppingItem(text: String, aisle: String? = nil, source: String? = nil, allowLlm: Bool = true) async throws -> ShoppingItem {
-        struct Body: Encodable { let text: String; let aisle: String?; let source: String?; let noLlm: Bool? }
-        let body = Body(text: text, aisle: aisle, source: source, noLlm: allowLlm ? nil : true)
+    /// `itemId`, when supplied, is the client-generated id of an offline-created item (RECP-49 B3);
+    /// the server stores the row under it so re-pushing the create is idempotent.
+    func addShoppingItem(text: String, itemId: String? = nil, aisle: String? = nil, source: String? = nil, allowLlm: Bool = true) async throws -> ShoppingItem {
+        struct Body: Encodable { let text: String; let itemId: String?; let aisle: String?; let source: String?; let noLlm: Bool? }
+        let body = Body(text: text, itemId: itemId, aisle: aisle, source: source, noLlm: allowLlm ? nil : true)
         let data = try await request("/shopping/items", method: "POST", body: body)
         struct Response: Decodable { let item: ShoppingItem }
         guard let item = (try? JSONDecoder().decode(Response.self, from: data))?.item else {

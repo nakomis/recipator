@@ -57,6 +57,11 @@ targets:
                     - UIInterfaceOrientationLandscapeLeft
                     - UIInterfaceOrientationLandscapeRight
                 ITSAppUsesNonExemptEncryption: false
+                # Background shopping-list sync (RECP-49 B3): a periodic app-refresh task.
+                UIBackgroundModes:
+                    - fetch
+                BGTaskSchedulerPermittedIdentifiers:
+                    - com.nakomis.recipator.shopping-sync
                 CFBundleURLTypes:
                     - CFBundleURLSchemes:
                           - com.nakomis.recipator

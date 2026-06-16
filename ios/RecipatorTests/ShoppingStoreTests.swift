@@ -71,6 +71,28 @@ final class ShoppingStoreTests: XCTestCase {
         XCTAssertEqual(try store.outboxCount(), 0) // seeding is not a local mutation
     }
 
+    func testReconcileMatchesServerWhenNothingPending() throws {
+        let store = try ShoppingStore.inMemory()
+        try store.replaceAllFromServer([makeItem(id: "a", item: "eggs"), makeItem(id: "b", item: "bread")])
+        // Server now has b (moved aisle) and a new c; a is gone.
+        try store.reconcile(
+            serverItems: [makeItem(id: "b", item: "bread", aisle: "frozen"), makeItem(id: "c", item: "peas")],
+            pendingItemIds: []
+        )
+        let byId = Dictionary(uniqueKeysWithValues: try store.allItems().map { ($0.itemId, $0) })
+        XCTAssertNil(byId["a"])                    // deleted server-side
+        XCTAssertEqual(byId["b"]?.aisle, "frozen") // updated
+        XCTAssertNotNil(byId["c"])                 // added
+    }
+
+    func testReconcilePreservesPendingItems() throws {
+        let store = try ShoppingStore.inMemory()
+        try store.replaceAllFromServer([makeItem(id: "a", item: "eggs"), makeItem(id: "b", item: "bread")])
+        // "a" has an un-pushed local change; the server snapshot omits it. It must survive.
+        try store.reconcile(serverItems: [makeItem(id: "b", item: "bread")], pendingItemIds: ["a"])
+        XCTAssertEqual(Set(try store.allItems().map(\.itemId)), ["a", "b"])
+    }
+
     // MARK: - Categoriser cache step
 
     func testCacheHitWinsOverRules() async {
