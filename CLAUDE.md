@@ -2,6 +2,13 @@
 
 iOS Share Extension and Chrome plugin for extracting and saving web recipes with AI.
 
+## Blogging — none for this project
+
+Do **not** write blog posts or create Blog Posts (BCON) stories for Recipator, and do not raise
+the end-of-session "would this make a good blog post?" prompt here. Recipator extracts recipes
+from third-party sites, and a public write-up risks reading as a how-to guide for scraping —
+which we don't want to publish. This overrides the global end-of-session blogging instruction.
+
 ## Stack
 
 - **iOS** — Swift 5.10, SwiftUI, iOS 17+, XcodeGen (`ios/project.yml`)

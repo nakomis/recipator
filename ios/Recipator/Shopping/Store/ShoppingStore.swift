@@ -245,6 +245,23 @@ final class ShoppingStore {
         }
     }
 
+    /// Adopt the server's authoritative version of an item we just created (RECP-49). The server
+    /// may have categorised an item the device couldn't place — its returned aisle/source is the
+    /// answer — so overwrite the local row, but only if it hasn't been edited locally since we
+    /// created it (unchanged `updatedAt`), so a concurrent tick/move/rename isn't clobbered. This
+    /// makes categorisation land deterministically on the push, rather than relying on the later
+    /// pull+reconcile, which skips the item while its `create` is still pending. Returns whether
+    /// the local row was updated.
+    @discardableResult
+    func adoptServerCreate(_ serverItem: ShoppingItem, ifLocalUnchangedSince localUpdatedAt: String) throws -> Bool {
+        try dbQueue.write { db in
+            guard let local = try ShoppingItem.fetchOne(db, key: serverItem.itemId),
+                  local.updatedAt == localUpdatedAt else { return false }
+            try serverItem.save(db)
+            return true
+        }
+    }
+
     // MARK: - Internal
 
     private func enqueue(_ op: OutboxOp, _ db: Database) throws {
