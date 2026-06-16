@@ -224,9 +224,11 @@ final class APIClient {
     }
 
     /// Add a free-text item; the server categorises it (item + aisle) and returns it.
-    func addShoppingItem(text: String) async throws -> ShoppingItem {
-        struct Body: Encodable { let text: String }
-        let data = try await request("/shopping/items", method: "POST", body: Body(text: text))
+    /// `aisle`, when supplied, is an on-device (Foundation Models) classification — the
+    /// server uses it in place of its Bedrock call (RECP-35); nil lets the server decide.
+    func addShoppingItem(text: String, aisle: String? = nil) async throws -> ShoppingItem {
+        struct Body: Encodable { let text: String; let aisle: String? }
+        let data = try await request("/shopping/items", method: "POST", body: Body(text: text, aisle: aisle))
         struct Response: Decodable { let item: ShoppingItem }
         guard let item = (try? JSONDecoder().decode(Response.self, from: data))?.item else {
             throw APIError.server(0, "Decoding failed")

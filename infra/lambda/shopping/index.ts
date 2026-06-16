@@ -77,7 +77,10 @@ export async function handler(
         if (!text) return err(400, 'text is required');
         await ensureDefaultList(userId);
 
-        const cat = await categorise(text, { llmCategorise, cacheGet, cachePut });
+        // An on-device categorisation (Foundation Models, RECP-35) may accompany the add;
+        // honoured only if it's a valid aisle id, otherwise ignored.
+        const deviceAisle = typeof body.aisle === 'string' && isAisleId(body.aisle) ? body.aisle : null;
+        const cat = await categorise(text, { llmCategorise, cacheGet, cachePut }, deviceAisle);
         const now = new Date().toISOString();
         const item: ShoppingItem = {
           itemId: randomUUID(),

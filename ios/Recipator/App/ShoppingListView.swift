@@ -192,7 +192,10 @@ struct ShoppingListView: View {
         isAdding = true
         defer { isAdding = false }
         do {
-            let item = try await APIClient.shared.addShoppingItem(text: text)
+            // Fast path: classify on-device (Foundation Models) when available, so the
+            // server can skip its Bedrock call (RECP-35). nil → server categorises.
+            let deviceAisle = await OnDeviceCategoriser.aisle(for: text)
+            let item = try await APIClient.shared.addShoppingItem(text: text, aisle: deviceAisle)
             items.append(item)
             newItem = ""
             addFocused = true   // keep the keyboard up for rapid entry
