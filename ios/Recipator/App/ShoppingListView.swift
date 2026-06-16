@@ -23,6 +23,19 @@ struct ShoppingListView: View {
             .sorted { $0.aisle.order < $1.aisle.order }
     }
 
+    /// Sandbox-only label + colour for how an item was categorised. "llm" is the Bedrock
+    /// Lambda; an on-device source (RECP-35) would map to its own badge when it lands.
+    private func sourceBadge(_ source: String?) -> (label: String, colour: Color)? {
+        switch source {
+        case "rules":    return ("rules", .gray)
+        case "cache":    return ("cache", .teal)
+        case "llm":      return ("Lambda", .orange)
+        case "device":   return ("on-device", .green)
+        case "fallback": return ("other", .brown)
+        default:         return nil
+        }
+    }
+
     private func itemsAdjacent(_ a: ShoppingItem, _ b: ShoppingItem) -> Bool {
         let byName = a.item.localizedCaseInsensitiveCompare(b.item)
         if byName != .orderedSame { return byName == .orderedAscending }
@@ -38,9 +51,17 @@ struct ShoppingListView: View {
             .navigationTitle("Shopping")
             .toolbar {
                 if !checked.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItem(placement: .topBarLeading) {
                         Button("Clear Ticked", role: .destructive) { Task { await clearTicked() } }
                     }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    AccountMenu()
+                }
+                // Dismiss the keyboard — the add field otherwise has no way to close it.
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { addFocused = false }
                 }
             }
             .alert("Error", isPresented: .constant(error != nil)) {
@@ -100,6 +121,7 @@ struct ShoppingListView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .scrollDismissesKeyboard(.interactively)
             .refreshable { await load() }
         }
     }
@@ -115,6 +137,15 @@ struct ShoppingListView: View {
                     .strikethrough(item.checked)
                     .foregroundStyle(item.checked ? .secondary : .primary)
                 Spacer()
+                if AppConfig.isSandbox, let badge = sourceBadge(item.source) {
+                    Text(badge.label)
+                        .font(.caption2.bold())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(badge.colour, in: Capsule())
+                        .accessibilityLabel("Categorised by \(badge.label)")
+                }
             }
             .contentShape(Rectangle())
         }
@@ -184,7 +215,8 @@ struct ShoppingListView: View {
         items[idx] = ShoppingItem(
             itemId: it.itemId, listId: it.listId, raw: it.raw, item: it.item,
             amount: it.amount, unit: it.unit, aisle: it.aisle, checked: checked,
-            sortOrder: it.sortOrder, createdAt: it.createdAt, updatedAt: it.updatedAt
+            sortOrder: it.sortOrder, createdAt: it.createdAt, updatedAt: it.updatedAt,
+            source: it.source
         )
     }
 }

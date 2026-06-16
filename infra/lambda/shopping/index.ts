@@ -89,6 +89,7 @@ export async function handler(
           sortOrder: Date.now(),
           createdAt: now,
           updatedAt: now,
+          source: cat.source,
         };
         await putItem(userId, item);
         log.info('shopping:add', { userId, listId, aisle: cat.aisle, source: cat.source });

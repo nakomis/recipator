@@ -78,6 +78,8 @@ struct ShoppingItem: Codable, Identifiable {
     let sortOrder: Int
     let createdAt: String
     let updatedAt: String
+    /// How the server categorised this item (rules/cache/llm/fallback). Shown in sandbox only.
+    let source: String?
     var id: String { itemId }
 
     private static let tightUnits: Set<String> = ["g", "kg", "mg", "ml", "cl", "l"]

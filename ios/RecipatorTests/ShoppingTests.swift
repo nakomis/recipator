@@ -5,7 +5,7 @@ final class ShoppingTests: XCTestCase {
                           aisle: String = "other") -> ShoppingItem {
         ShoppingItem(
             itemId: "1", listId: "default", raw: "", item: item, amount: amount, unit: unit,
-            aisle: aisle, checked: checked, sortOrder: 0, createdAt: "", updatedAt: ""
+            aisle: aisle, checked: checked, sortOrder: 0, createdAt: "", updatedAt: "", source: nil
         )
     }
 

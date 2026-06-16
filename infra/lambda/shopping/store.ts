@@ -38,6 +38,8 @@ export interface ShoppingItem {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+  /** How the item was categorised (rules/cache/llm/fallback) — surfaced in the sandbox UI. */
+  source: string | null;
 }
 
 export interface ShoppingList {
@@ -201,5 +203,6 @@ function toItem(raw: Record<string, unknown>): ShoppingItem {
     sortOrder: (raw.sortOrder as number) ?? 0,
     createdAt: (raw.createdAt as string) ?? '',
     updatedAt: (raw.updatedAt as string) ?? '',
+    source: (raw.source as string) ?? null,
   };
 }
