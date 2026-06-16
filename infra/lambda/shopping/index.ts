@@ -40,6 +40,10 @@ const llmCategorise = makeBedrockCategoriser(bedrock, BEDROCK_MODEL_ID);
 // never accepted from a client — an unplaced item must reach the server's own cascade.
 const DEVICE_SOURCES = new Set<string>(['rules', 'cache', 'device', 'llm']);
 
+// A client may supply the item's id so an offline-created item keeps its id when the background
+// sync pushes it, making the create idempotent (re-pushing overwrites the same row). RECP-49 B3.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function ok(body: unknown, statusCode = 200): APIGatewayProxyResultV2 {
   return { statusCode, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
@@ -90,8 +94,10 @@ export async function handler(
         const allowLlm = body.noLlm !== true;
         const cat = await categorise(text, { llmCategorise, cacheGet, cachePut }, deviceAisle, allowLlm, deviceSource);
         const now = new Date().toISOString();
+        // Honour a valid client-supplied id (idempotent sync push); otherwise mint one.
+        const itemId = typeof body.itemId === 'string' && UUID_RE.test(body.itemId) ? body.itemId : randomUUID();
         const item: ShoppingItem = {
-          itemId: randomUUID(),
+          itemId,
           listId,
           raw: text,
           item: cat.item,
