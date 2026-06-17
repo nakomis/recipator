@@ -29,7 +29,13 @@ struct RecipatorApp: App {
             // Sandbox builds get a green accent throughout so the environment is
             // unmistakable; production keeps the default tint.
             .tint(AppConfig.isSandbox ? .green : nil)
-            .task { await auth.restore() }
+            .task {
+                // Route every API bearer through AuthService so tokens refresh silently and a
+                // dead session drops straight to the sign-in screen (RECP-56). Set before restore
+                // so it's in place before the first authenticated request.
+                APIClient.shared.tokenProvider = { await auth.accessToken() }
+                await auth.restore()
+            }
             // Retry pending avatar upload + refresh member avatars, and sync the shopping list,
             // when connectivity returns (RECP-51/49). Registered once for the app's lifetime.
             .task {

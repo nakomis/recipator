@@ -17,6 +17,10 @@ struct RecipeListView: View {
     @StateObject private var search = RecipeSearchModel()
     @State private var searchText = ""
     @State private var rankedIds: [String]? = nil   // nil = not yet computed for this query
+    // Re-open the recipe the user last had open, across launches and sign-ins (RECP-56). Cleared
+    // when they close it; a deleted/unreachable recipe is silently skipped on restore.
+    @AppStorage("lastOpenRecipeId") private var lastOpenRecipeId = ""
+    @AppStorage("lastOpenRecipeUserId") private var lastOpenRecipeUserId = ""
 
     private var isInGroup: Bool {
         guard let uid = auth.userId else { return false }
@@ -181,7 +185,10 @@ struct RecipeListView: View {
             .alert("Error", isPresented: .constant(error != nil), actions: {
                 Button("OK") { error = nil }
             }, message: { Text(error ?? "") })
-            .fullScreenCover(item: $selected) { detail in
+            .fullScreenCover(item: $selected, onDismiss: {
+                lastOpenRecipeId = ""
+                lastOpenRecipeUserId = ""
+            }) { detail in
                 RecipeDetailView(recipe: detail)
             }
         }
@@ -192,6 +199,7 @@ struct RecipeListView: View {
             async let config: () = loadConfig()
             async let recipes: () = fetch()
             _ = await (config, recipes)
+            await restoreLastOpenRecipe()
             // Sync the search index immediately (enables keyword search now); prepare the
             // embedding model in parallel (enables semantic search once it lands).
             Task { await search.sync(knownRecipeIds: Set(allRecipes.map(\.recipeId))) }
@@ -298,8 +306,25 @@ struct RecipeListView: View {
     private func load(_ id: String, userId: String? = nil) async {
         do {
             selected = try await APIClient.shared.getRecipe(id: id, userId: userId)
+            // Remember it so a relaunch or re-login lands the user back on this recipe (RECP-56).
+            lastOpenRecipeId = id
+            lastOpenRecipeUserId = userId ?? ""
         } catch {
             self.error = error.localizedDescription
+        }
+    }
+
+    /// Re-open the last viewed recipe on launch/login (RECP-56). Best-effort: a recipe that's
+    /// since been deleted or is unreachable is silently forgotten rather than raising an error.
+    @MainActor
+    private func restoreLastOpenRecipe() async {
+        guard selected == nil, !lastOpenRecipeId.isEmpty else { return }
+        let userId = lastOpenRecipeUserId.isEmpty ? nil : lastOpenRecipeUserId
+        if let recipe = try? await APIClient.shared.getRecipe(id: lastOpenRecipeId, userId: userId) {
+            selected = recipe
+        } else {
+            lastOpenRecipeId = ""
+            lastOpenRecipeUserId = ""
         }
     }
 
@@ -395,6 +420,11 @@ struct RecipeRow: View {
 struct RecipeDetailView: View {
     let recipe: RecipeDetail
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var auth: AuthService
+    /// Ingredients ticked off while cooking, by index (so duplicate lines tick independently).
+    /// Ephemeral per open — the heartbeat below keeps the session alive so a long cook won't
+    /// drop you to the sign-in screen and lose them (RECP-56).
+    @State private var checkedIngredients: Set<Int> = []
 
     var body: some View {
         NavigationStack {
@@ -421,10 +451,43 @@ struct RecipeDetailView: View {
                         .foregroundStyle(Color.accentColor)
                 }
 
-                Section("Ingredients") {
-                    ForEach(recipe.ingredients, id: \.self) { ingredient in
-                        Label(ingredient, systemImage: "circle")
-                            .labelStyle(.titleAndIcon)
+                Section {
+                    ForEach(Array(recipe.ingredients.enumerated()), id: \.offset) { i, ingredient in
+                        let isChecked = checkedIngredients.contains(i)
+                        Button {
+                            if isChecked { checkedIngredients.remove(i) } else { checkedIngredients.insert(i) }
+                        } label: {
+                            Label {
+                                Text(ingredient)
+                                    .strikethrough(isChecked)
+                                    .foregroundStyle(isChecked ? .secondary : .primary)
+                            } icon: {
+                                Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(isChecked ? Color.accentColor : .secondary)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } header: {
+                    HStack {
+                        Text("Ingredients")
+                        Spacer()
+                        if !checkedIngredients.isEmpty {
+                            Button {
+                                checkedIngredients.removeAll()
+                            } label: {
+                                Text("Clear all")
+                                    .font(.caption2.bold())
+                                    .textCase(nil)
+                                    .foregroundStyle(Color.accentColor)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(Color.accentColor.opacity(0.15), in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Clear all ticked ingredients")
+                        }
                     }
                 }
 
@@ -458,6 +521,17 @@ struct RecipeDetailView: View {
             // hands busy) — but only here, not on the list. Reset on dismiss.
             .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
             .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+            // Heartbeat: while a recipe is open (screen kept awake for a long cook) the app makes
+            // no API calls, so the access token could lapse and the next action would bounce to
+            // sign-in. Ping accessToken() every few minutes — a no-op until the token nears expiry,
+            // when it refreshes — so the session stays warm for the duration of the cook (RECP-56).
+            .task {
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(180))
+                    if Task.isCancelled { break }
+                    _ = await auth.accessToken()
+                }
+            }
         }
     }
 

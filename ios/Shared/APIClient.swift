@@ -129,14 +129,25 @@ enum APIError: LocalizedError {
 final class APIClient {
     static let shared = APIClient()
 
-    private func token() throws -> String {
+    /// Supplies a fresh access token, silently refreshing via the Cognito refresh token and
+    /// signing out (→ sign-in screen) when the refresh token is dead (RECP-56). The main app sets
+    /// this to `AuthService.accessToken` at launch; the Share Extension leaves it nil and reads the
+    /// stored token directly (it has no AuthService, and a stale token there simply fails the call).
+    var tokenProvider: (@MainActor @Sendable () async -> String?)?
+
+    private func token() async throws -> String {
+        if let tokenProvider {
+            // A nil result means refresh failed and AuthService has already signed out.
+            guard let token = await tokenProvider() else { throw APIError.tokenExpired }
+            return token
+        }
         guard let stored = try? TokenStore.load() else { throw APIError.notAuthenticated }
         guard stored.expiresAt > Date() else { throw APIError.tokenExpired }
         return stored.accessToken
     }
 
     private func request(_ path: String, method: String = "GET", body: Encodable? = nil) async throws -> Data {
-        let token = try token()
+        let token = try await token()
         var req = URLRequest(url: URL(string: AppConfig.apiBaseURL + path)!)
         req.httpMethod = method
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
