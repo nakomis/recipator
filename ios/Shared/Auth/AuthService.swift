@@ -36,12 +36,15 @@ final class AuthService: NSObject, ObservableObject {
 
     // MARK: - Public API
 
-    /// Returns a valid access token, refreshing silently if needed.
+    /// Returns a valid access token, refreshing silently if needed. When no token can be produced
+    /// (no refresh token, or the refresh failed) it signs out — flipping `isSignedIn` so the root
+    /// view drops to the sign-in screen automatically, rather than surfacing a "session expired"
+    /// error the user has to clear and then manually log out from (RECP-56).
     func accessToken() async -> String? {
-        guard let t = tokens else { return nil }
+        guard let t = tokens else { signOut(); return nil }
         if t.expiresAt > Date().addingTimeInterval(60) { return t.accessToken }
-        guard let rt = t.refreshToken else { return nil }
-        await refresh(using: rt)
+        guard let rt = t.refreshToken else { signOut(); return nil }
+        await refresh(using: rt)   // signs out itself on failure
         return tokens?.accessToken
     }
 
