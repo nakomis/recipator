@@ -1,5 +1,18 @@
 default_platform(:ios)
 
+# Default TestFlight "What to Test" notes — written for a non-technical audience (family
+# testers). Override per-build with `fastlane beta notes:"…"`. Keep it plain-English: what
+# changed and what to try, never internals.
+RELEASE_NOTES = <<~NOTES.freeze
+  What's new:
+
+  • Tick ingredients off as you cook — tap one to mark it done, and use “Clear all” to reset the list. Your ticks are saved per recipe, so you can come back later and see what's left.
+  • The app now remembers where you were — it reopens to the tab and the recipe you last had open.
+  • No more session timeout errors — you stay signed in.
+
+  Please try cooking from a recipe (tick a few ingredients, close and reopen it) and let me know how it feels.
+NOTES
+
 platform :ios do
   desc "Run unit tests"
   lane :test do
@@ -10,7 +23,7 @@ platform :ios do
   end
 
   desc "Upload an already-built IPA to TestFlight (skips rebuild)"
-  lane :upload do
+  lane :upload do |options|
     asc_key_id      = ENV["ASC_KEY_ID"]      || `security find-generic-password -s app-store-connect -a key-id      -w 2>/dev/null`.strip
     asc_issuer_id   = ENV["ASC_ISSUER_ID"]   || `security find-generic-password -s app-store-connect -a issuer-id   -w 2>/dev/null`.strip
     asc_key_content = ENV["ASC_KEY_CONTENT"] || `security find-generic-password -s app-store-connect -a key-content -w 2>/dev/null`.strip
@@ -25,6 +38,7 @@ platform :ios do
     upload_to_testflight(
       api_key:                           api_key,
       ipa:                               "Recipator.ipa",
+      changelog:                         options[:notes] || RELEASE_NOTES,
       skip_waiting_for_build_processing: true,
     )
   end
@@ -104,7 +118,7 @@ platform :ios do
   end
 
   desc "Build and upload to TestFlight (production scheme)"
-  lane :beta do
+  lane :beta do |options|
     ensure_git_status_clean
 
     # Prefer env vars (CI) then fall back to local keychain (dev machine)
@@ -136,6 +150,7 @@ platform :ios do
 
     upload_to_testflight(
       api_key:                           api_key,
+      changelog:                         options[:notes] || RELEASE_NOTES,
       skip_waiting_for_build_processing: true,
     )
   ensure
