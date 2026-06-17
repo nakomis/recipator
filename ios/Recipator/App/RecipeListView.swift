@@ -422,9 +422,12 @@ struct RecipeDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var auth: AuthService
     /// Ingredients ticked off while cooking, by index (so duplicate lines tick independently).
-    /// Ephemeral per open — the heartbeat below keeps the session alive so a long cook won't
-    /// drop you to the sign-in screen and lose them (RECP-56).
+    /// Persisted per-recipe in UserDefaults (see `checkedKey`) so they survive closing the recipe,
+    /// a force-quit, or a re-login — you can come back and see what's left to do (RECP-56).
     @State private var checkedIngredients: Set<Int> = []
+
+    /// UserDefaults key holding this recipe's ticked-ingredient indices.
+    private var checkedKey: String { "checkedIngredients.\(recipe.recipeId)" }
 
     var body: some View {
         NavigationStack {
@@ -519,8 +522,21 @@ struct RecipeDetailView: View {
             }
             // Keep the screen awake while a recipe is open (you're cooking from it,
             // hands busy) — but only here, not on the list. Reset on dismiss.
-            .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
+            .onAppear {
+                UIApplication.shared.isIdleTimerDisabled = true
+                if let saved = UserDefaults.standard.array(forKey: checkedKey) as? [Int] {
+                    checkedIngredients = Set(saved)
+                }
+            }
             .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+            // Persist ticks per-recipe on every change so they survive a close/relaunch (RECP-56).
+            .onChange(of: checkedIngredients) { _, new in
+                if new.isEmpty {
+                    UserDefaults.standard.removeObject(forKey: checkedKey)
+                } else {
+                    UserDefaults.standard.set(Array(new), forKey: checkedKey)
+                }
+            }
             // Heartbeat: while a recipe is open (screen kept awake for a long cook) the app makes
             // no API calls, so the access token could lapse and the next action would bounce to
             // sign-in. Ping accessToken() every few minutes — a no-op until the token nears expiry,
