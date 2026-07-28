@@ -164,7 +164,12 @@ final class AuthService: NSObject, ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: req)
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             if (400..<500).contains(status) {
-                // Cognito rejected the refresh token itself — it will never work again.
+                // A 4xx is only trustworthy if Cognito actually sent it. Anything on the path can
+                // manufacture one — most importantly a captive portal, which the device reports as
+                // a perfectly good network (`NWPath.status == .satisfied`), so we reach here
+                // believing we're online. Supermarket WiFi is the likeliest place in a user's week
+                // to meet one, and it's also where they most need their list (RECP-58).
+                guard Self.isDeadRefreshToken(data) else { return tokens != nil }
                 signOut()
                 return false
             }
@@ -178,6 +183,18 @@ final class AuthService: NSObject, ObservableObject {
             // Transport failure (offline, DNS, timeout). Keep the credentials.
             return tokens != nil
         }
+    }
+
+    /// Does this body actually say "your refresh token is no longer valid"? Cognito answers a
+    /// revoked or expired refresh token with a JSON `{"error": "invalid_grant"}`. A captive
+    /// portal's HTML login page, an empty body, a proxy's error page, or any other OAuth error
+    /// code is *not* grounds for destroying the user's credentials — those are all transient, and
+    /// the refresh token behind them is very probably still good for weeks (RECP-58).
+    nonisolated static func isDeadRefreshToken(_ data: Data) -> Bool {
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let error = obj["error"] as? String
+        else { return false }
+        return error == "invalid_grant"
     }
 
     private func applyTokenResponse(_ data: Data, existingRefreshToken: String? = nil) throws {
