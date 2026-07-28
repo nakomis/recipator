@@ -47,7 +47,11 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 function ok(body: unknown, statusCode = 200): APIGatewayProxyResultV2 {
   return { statusCode, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
-function err(status: number, message: string): APIGatewayProxyResultV2 {
+// Every 4xx is logged. Without this a client stuck in a rejection loop is invisible: the Lambda
+// runs, returns, and leaves nothing behind but an API Gateway 4xx count with no route or reason
+// attached — which is exactly what made the 2026-07-28 sync stall so hard to diagnose (RECP-58).
+function err(status: number, message: string, ctx: Record<string, unknown> = {}): APIGatewayProxyResultV2 {
+  log.warn('shopping:rejected', { status, message, ...ctx });
   return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: message }) };
 }
 
@@ -56,8 +60,7 @@ export async function handler(
 ): Promise<APIGatewayProxyResultV2> {
   const userId = event.requestContext.authorizer?.jwt?.claims?.sub as string | undefined;
   if (!userId) {
-    log.warn('shopping:unauthorised');
-    return err(401, 'Unauthorised');
+    return err(401, 'Unauthorised', { routeKey: event.routeKey });
   }
 
   const routeKey = event.routeKey; // e.g. "POST /shopping/items"
@@ -82,7 +85,7 @@ export async function handler(
 
       case 'POST /shopping/items': {
         const text = typeof body.text === 'string' ? body.text.trim() : '';
-        if (!text) return err(400, 'text is required');
+        if (!text) return err(400, 'text is required', { routeKey, userId });
         await ensureDefaultList(userId);
 
         // An on-device categorisation (RECP-35/RECP-49) may accompany the add; honoured only
@@ -116,18 +119,18 @@ export async function handler(
       }
 
       case 'PATCH /shopping/items/{itemId}': {
-        if (!itemId) return err(400, 'itemId is required');
+        if (!itemId) return err(400, 'itemId is required', { routeKey, userId });
         const patch = buildPatch(body);
-        if (patch === null) return err(400, 'Invalid aisle');
+        if (patch === null) return err(400, 'Invalid aisle', { routeKey, userId, itemId });
         if (Object.keys(patch).length === 0) {
           const current = await getItem(userId, listId, itemId);
-          return current ? ok({ item: current }) : err(404, 'Item not found');
+          return current ? ok({ item: current }) : err(404, 'Item not found', { routeKey, userId, listId, itemId });
         }
         // If the user is moving the item to a different aisle, capture the before-state
         // so we can record the correction as a training signal (RECP-34; mined later).
         const before = patch.aisle !== undefined ? await getItem(userId, listId, itemId) : null;
         const updated = await updateItem(userId, listId, itemId, patch);
-        if (!updated) return err(404, 'Item not found');
+        if (!updated) return err(404, 'Item not found', { routeKey, userId, listId, itemId });
         if (before && patch.aisle && before.aisle !== patch.aisle) {
           await recordCorrection(userId, listId, itemId, {
             itemText: before.item,
@@ -144,7 +147,7 @@ export async function handler(
       }
 
       case 'DELETE /shopping/items/{itemId}': {
-        if (!itemId) return err(400, 'itemId is required');
+        if (!itemId) return err(400, 'itemId is required', { routeKey, userId });
         await deleteItem(userId, listId, itemId);
         return { statusCode: 204, body: '' };
       }
@@ -162,11 +165,11 @@ export async function handler(
       }
 
       default:
-        return err(404, `Unknown route: ${routeKey}`);
+        return err(404, `Unknown route: ${routeKey}`, { routeKey, userId });
     }
   } catch (e) {
     log.error('shopping:error', { userId, routeKey, error: String(e) });
-    return err(500, 'Internal error');
+    return err(500, 'Internal error', { routeKey, userId });
   }
 }
 

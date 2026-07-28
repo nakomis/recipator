@@ -18,7 +18,12 @@ struct RecipatorApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if auth.isSignedIn {
+                if auth.isRestoring {
+                    // Hold the launch appearance until `restore()` settles, so a valid or silently
+                    // refreshable session goes straight to MainTabView instead of flashing the
+                    // sign-in screen on every cold launch (RECP-58).
+                    LaunchPlaceholderView()
+                } else if auth.isSignedIn {
                     MainTabView()
                 } else {
                     SignInView()

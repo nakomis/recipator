@@ -16,6 +16,10 @@ final class ShoppingSyncTests: XCTestCase {
         var snapshot: [ShoppingItem] = []
         var failAdds = false
         var failList = false
+        /// Status the "server" rejects an add with. Defaults to 500 (transient) when `failAdds`.
+        var addFailStatus = 500
+        /// Per-item rejection, so a test can poison one op and watch the rest go through.
+        var rejectAddsWithItemId: [String: Int] = [:]
         /// When set, a deferred create (no aisle sent) comes back categorised by the "server".
         var categoriseDeferredAs: (aisle: String, source: String)?
 
@@ -25,7 +29,8 @@ final class ShoppingSyncTests: XCTestCase {
         }
 
         func addShoppingItem(text: String, itemId: String?, aisle: String?, source: String?, allowLlm: Bool) async throws -> ShoppingItem {
-            if failAdds { throw APIError.server(500, "boom") }
+            if failAdds { throw APIError.server(addFailStatus, "boom") }
+            if let id = itemId, let status = rejectAddsWithItemId[id] { throw APIError.server(status, "rejected") }
             adds.append(Add(text: text, itemId: itemId, aisle: aisle, source: source, allowLlm: allowLlm))
             if aisle == nil, let cat = categoriseDeferredAs {   // server placed an unresolved item
                 return makeItem(id: itemId ?? UUID().uuidString, item: text, aisle: cat.aisle, source: cat.source)
@@ -108,13 +113,65 @@ final class ShoppingSyncTests: XCTestCase {
         let store = try ShoppingStore.inMemory()
         try store.create(makeItem(id: "x", item: "milk", aisle: "dairy-eggs", source: "rules"))
         let api = FakeAPI()
-        api.failAdds = true
+        api.failAdds = true   // 500 — transient
 
         let sync = ShoppingSync(store: store, api: api, isOnline: { true }, isWiFi: { true })
         await sync.sync()
 
         XCTAssertEqual(try store.outboxCount(), 1) // create kept for retry
         XCTAssertEqual(api.listCalls, 0)           // no pull after a failed push
+    }
+
+    /// Regression (RECP-58): a permanently-rejected op must not wedge the queue. Previously any
+    /// error kept the op in the outbox *and* skipped the pull, so a 4xx the server would return
+    /// forever froze the device's view of the list — the cause of the 2026-07-28 stall where one
+    /// device stopped seeing the other's changes for hours.
+    func testPermanentRejectionDropsOpAndStillPulls() async throws {
+        let store = try ShoppingStore.inMemory()
+        try store.create(makeItem(id: "x", item: "milk", aisle: "dairy-eggs", source: "rules"))
+        let api = FakeAPI()
+        api.failAdds = true
+        api.addFailStatus = 404
+        api.snapshot = [makeItem(id: "server1", item: "bread", aisle: "bakery")]
+
+        let sync = ShoppingSync(store: store, api: api, isOnline: { true }, isWiFi: { true })
+        await sync.sync()
+
+        XCTAssertEqual(try store.outboxCount(), 0)  // dropped rather than retried forever
+        XCTAssertEqual(api.listCalls, 1)            // and the pull still ran
+        XCTAssertEqual(try store.allItems().map(\.itemId), ["server1"])
+    }
+
+    /// 401 is transient — it clears once the token refreshes — so it must keep the op queued.
+    func testUnauthorisedIsTreatedAsTransient() async throws {
+        let store = try ShoppingStore.inMemory()
+        try store.create(makeItem(id: "x", item: "milk", aisle: "dairy-eggs", source: "rules"))
+        let api = FakeAPI()
+        api.failAdds = true
+        api.addFailStatus = 401
+
+        let sync = ShoppingSync(store: store, api: api, isOnline: { true }, isWiFi: { true })
+        await sync.sync()
+
+        XCTAssertEqual(try store.outboxCount(), 1)
+        XCTAssertEqual(api.listCalls, 0)
+    }
+
+    /// One poisoned op must not stop the ops behind it from reaching the server.
+    func testPermanentRejectionDoesNotBlockLaterOps() async throws {
+        let store = try ShoppingStore.inMemory()
+        try store.create(makeItem(id: "bad", item: "milk", aisle: "dairy-eggs", source: "rules"))
+        try store.create(makeItem(id: "good", item: "bread", aisle: "bakery", source: "rules"))
+        let api = FakeAPI()
+        // Reject only the first item; the second must still be pushed.
+        api.rejectAddsWithItemId = ["bad": 404]
+
+        let sync = ShoppingSync(store: store, api: api, isOnline: { true }, isWiFi: { true })
+        await sync.sync()
+
+        XCTAssertEqual(api.adds.map(\.itemId), ["good"])
+        XCTAssertEqual(try store.outboxCount(), 0)
+        XCTAssertEqual(api.listCalls, 1)
     }
 
     func testOfflineIsNoOp() async throws {
