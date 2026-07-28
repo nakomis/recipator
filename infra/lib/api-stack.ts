@@ -50,10 +50,6 @@ export class ApiStack extends cdk.Stack {
       userPool,
       authFlows: { userSrp: true },
       generateSecret: false,
-      // TEMPORARY, SANDBOX ONLY (RECP-58): the default 60-minute access token makes the offline
-      // expiry tests an hour per attempt. 5 minutes is the Cognito minimum. Remove this before
-      // closing RECP-58 — sandbox token timings are not representative of prod while it's set.
-      ...(deployEnv === 'sandbox' ? { accessTokenValidity: cdk.Duration.minutes(5) } : {}),
       oAuth: {
         flows: { authorizationCodeGrant: true },
         callbackUrls: [
