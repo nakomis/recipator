@@ -50,6 +50,11 @@ export class ApiStack extends cdk.Stack {
       userPool,
       authFlows: { userSrp: true },
       generateSecret: false,
+      // Explicitly the Cognito default. RECP-58 briefly set sandbox to 5 minutes to make the
+      // offline-expiry tests practical; removing that property again does NOT reset the live
+      // client (Cognito keeps the last value CloudFormation set, and an absent property is not
+      // an instruction to clear it), so the default has to be asserted rather than implied.
+      accessTokenValidity: cdk.Duration.hours(1),
       oAuth: {
         flows: { authorizationCodeGrant: true },
         callbackUrls: [
