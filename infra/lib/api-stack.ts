@@ -455,6 +455,36 @@ export class ApiStack extends cdk.Stack {
     api.addRoutes({ path: '/shopping/clear-ticked',  methods: [apigwv2.HttpMethod.POST],   integration: shoppingInt });
     api.addRoutes({ path: '/shopping/clear-all',     methods: [apigwv2.HttpMethod.POST],   integration: shoppingInt });
 
+    // ── Access logging (RECP-58) ──────────────────────────────────────────────
+    // The default stage had no access log. When a client wedged itself in a 4xx retry loop, all
+    // that survived was a CloudWatch 4xx *count* — no route, no status, no caller — which made a
+    // silent sync failure very expensive to diagnose. Log every request with enough to identify
+    // the route, the status and the caller.
+    const accessLogGroup = new logs.LogGroup(this, 'ApiAccessLogs', {
+      logGroupName: `/aws/apigateway/recipator-api-${deployEnv}`,
+      retention: logs.RetentionDays.SIX_MONTHS,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const defaultStage = api.defaultStage!.node.defaultChild as apigwv2.CfnStage;
+    defaultStage.accessLogSettings = {
+      destinationArn: accessLogGroup.logGroupArn,
+      format: JSON.stringify({
+        requestId: '$context.requestId',
+        time: '$context.requestTime',
+        routeKey: '$context.routeKey',
+        method: '$context.httpMethod',
+        path: '$context.path',
+        status: '$context.status',
+        integrationStatus: '$context.integrationStatus',
+        integrationError: '$context.integrationErrorMessage',
+        authorizerError: '$context.authorizer.error',
+        userId: '$context.authorizer.claims.sub',
+        userAgent: '$context.identity.userAgent',
+        responseLatency: '$context.responseLatency',
+      }),
+    };
+
     // ── Route53 alias → API Gateway custom domain ─────────────────────────────
     new route53.ARecord(this, 'ApiDnsRecord', {
       zone,

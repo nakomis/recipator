@@ -66,7 +66,11 @@ final class ShoppingSync: ObservableObject {
         // offline-only mode, and on mobile data only when "Cloud sorting on mobile data" is on.
         let allowCloudLlm = !offlineOnly && (isWiFi() || cloudOnCellular)
 
-        // 1. Push the outbox in order; stop at the first failure and keep the remainder for next time.
+        // 1. Push the outbox in order. A *transient* failure (no network, 5xx, throttling) keeps the
+        //    op queued and stops the run — retry on the next trigger. A *permanent* failure (4xx:
+        //    the op refers to something the server no longer has, or the server rejected it) drops
+        //    the op and carries on: retrying it forever would wedge the queue and, worse, block the
+        //    pull below, silently freezing this device's view of the list (RECP-58).
         let pending = (try? store.pendingOutbox()) ?? []
         Self.log.debug("sync start: pending=\(pending.count, privacy: .public) allowCloudLlm=\(allowCloudLlm, privacy: .public)")
         for entry in pending {
@@ -74,8 +78,13 @@ final class ShoppingSync: ObservableObject {
                 try await push(entry.op, allowCloudLlm: allowCloudLlm)
                 try store.removeOutbox(seq: entry.seq)
             } catch {
-                Self.log.error("push failed (kind=\(entry.op.kind.rawValue, privacy: .public)) — keeping outbox, skipping pull: \(String(describing: error), privacy: .public)")
-                return // network/server error — retry the rest on the next trigger
+                if Self.isPermanent(error) {
+                    Self.log.error("push rejected permanently (kind=\(entry.op.kind.rawValue, privacy: .public)) — dropping op, continuing: \(String(describing: error), privacy: .public)")
+                    try? store.removeOutbox(seq: entry.seq)
+                    continue
+                }
+                Self.log.error("push failed transiently (kind=\(entry.op.kind.rawValue, privacy: .public)) — keeping outbox, skipping pull: \(String(describing: error), privacy: .public)")
+                return
             }
         }
 
@@ -88,6 +97,16 @@ final class ShoppingSync: ObservableObject {
     }
 
     // MARK: - Internal
+
+    /// Is this error worth retrying? 4xx means the server understood us and said no — replaying it
+    /// will get the same answer forever. 401 and 429 are the exceptions: the first clears once the
+    /// token refreshes, the second once the rate limit does. Everything else (transport errors,
+    /// 5xx, decode failures) is treated as transient (RECP-58).
+    private static func isPermanent(_ error: Error) -> Bool {
+        guard case let APIError.server(status, _) = error else { return false }
+        guard (400..<500).contains(status) else { return false }
+        return status != 401 && status != 429
+    }
 
     private func pendingItemIds() -> Set<String> {
         let ops = (try? store?.pendingOutbox()) ?? []
