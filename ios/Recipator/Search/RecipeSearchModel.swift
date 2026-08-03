@@ -7,6 +7,26 @@
 import Foundation
 import Combine
 
+/// One search's results, keeping the keyword and semantic rankings separate alongside the
+/// merged list the user actually sees.
+///
+/// Search always runs both strategies, so retaining all three rankings lets a single real
+/// search score all three counterfactually — the selected recipe's rank in each is recorded
+/// on tap (RECP-21). Only `ranked` was seen by the user; the other two are "where this would
+/// have appeared", which is why the dashboard notes position bias.
+struct SearchOutcome {
+    let searchId: String
+    /// The merged list, keyword hits first — what the UI renders.
+    let ranked: [String]
+    let keywordRanked: [String]
+    let semanticRanked: [String]
+    /// False until the embedding model has downloaded and compiled; semantic is empty until then.
+    let semanticAvailable: Bool
+    let latencyMs: Int
+    let keywordMs: Int
+    let semanticMs: Int
+}
+
 @MainActor
 final class RecipeSearchModel: ObservableObject {
     @Published private(set) var modelStatus: EmbeddingModelManager.Status = .idle
@@ -58,15 +78,20 @@ final class RecipeSearchModel: ObservableObject {
 
     /// Ranked recipe IDs for `query`, restricted to `candidates` (the owner filter).
     /// Keyword (FTS) hits rank first; semantically-similar recipes follow.
-    func search(_ query: String, candidates: Set<String>) async -> [String] {
+    func search(_ query: String, candidates: Set<String>) async -> SearchOutcome {
+        let clock = ContinuousClock()
+        let started = clock.now
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, let store else { return [] }
+        guard !trimmed.isEmpty, let store else { return .empty }
 
         // 1. Keyword hits (fast, no model needed).
+        let keywordStart = clock.now
         let keyword = (try? store.ftsSearch(trimmed, restrictedTo: candidates)) ?? []
+        let keywordMs = Self.elapsedMs(from: keywordStart, clock: clock)
 
         // 2. Semantic hits (only if the model is ready).
         var semantic: [String] = []
+        let semanticStart = clock.now
         if let embedder = manager.embedder, let modelVersion = manager.version {
             let prefixed = manager.queryPrefix + trimmed
             if let qv = await Task.detached(priority: .userInitiated, operation: {
@@ -82,11 +107,51 @@ final class RecipeSearchModel: ObservableObject {
                 }.value
             }
         }
+        let semanticMs = Self.elapsedMs(from: semanticStart, clock: clock)
 
         // 3. Merge: keyword first (literal matches), then new semantic matches.
         var seen = Set<String>()
         var merged: [String] = []
         for id in keyword + semantic where seen.insert(id).inserted { merged.append(id) }
-        return merged
+
+        return SearchOutcome(
+            searchId: UUID().uuidString,
+            ranked: merged,
+            keywordRanked: keyword,
+            semanticRanked: semantic,
+            semanticAvailable: manager.isReady,
+            latencyMs: Self.elapsedMs(from: started, clock: clock),
+            keywordMs: keywordMs,
+            semanticMs: semanticMs,
+        )
+    }
+
+    /// Whole milliseconds elapsed. 1ms = 10^15 attoseconds.
+    private static func elapsedMs(from start: ContinuousClock.Instant, clock: ContinuousClock) -> Int {
+        let d = clock.now - start
+        return Int(d.components.seconds * 1000 + d.components.attoseconds / 1_000_000_000_000_000)
+    }
+}
+
+extension SearchOutcome {
+    /// Used when a search short-circuits (empty query, no store) — never logged.
+    static let empty = SearchOutcome(
+        searchId: "", ranked: [], keywordRanked: [], semanticRanked: [],
+        semanticAvailable: false, latencyMs: 0, keywordMs: 0, semanticMs: 0,
+    )
+
+    var isEmpty: Bool { searchId.isEmpty }
+
+    /// 1-based position of `recipeId` in each ranking, or nil where that strategy did not
+    /// return it. `visible` is the owner-filtered list actually shown, so all three ranks are
+    /// measured against the same projection and the hybrid rank is the row the user tapped.
+    func ranks(of recipeId: String, visible: [String]) -> (hybrid: Int?, keyword: Int?, semantic: Int?) {
+        func rank(_ list: [String]) -> Int? {
+            let shown = Set(visible)
+            let projected = list.filter { shown.contains($0) }
+            guard let idx = projected.firstIndex(of: recipeId) else { return nil }
+            return idx + 1
+        }
+        return (rank(visible), rank(keywordRanked), rank(semanticRanked))
     }
 }

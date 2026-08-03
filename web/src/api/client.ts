@@ -260,3 +260,72 @@ export function useClearAll() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: shoppingKey }),
   });
 }
+
+// ── Search scoring (RECP-21) ────────────────────────────────────────────────
+
+export type SearchMode = 'keyword' | 'semantic' | 'hybrid';
+
+export interface ModeStats {
+  mode: SearchMode;
+  /** MRR over every search; abandoned searches and misses both score 0. */
+  mrrAll: number;
+  /** MRR over only the searches that ended in a tap. */
+  mrrSelected: number;
+  rank1Rate: number;
+  coverage: number;
+  sampleSize: number;
+  selectedSampleSize: number;
+}
+
+export interface Percentiles {
+  p50: number;
+  p95: number;
+}
+
+export interface SearchStats {
+  days: number;
+  totalSearches: number;
+  selectedSearches: number;
+  abandonmentRate: number;
+  semanticAvailableRate: number;
+  modes: ModeStats[];
+  latency: { total: Percentiles; keyword: Percentiles; semantic: Percentiles };
+}
+
+export interface SearchEventRow {
+  searchId: string;
+  userId: string;
+  at: string;
+  query?: string;
+  resultCount?: number;
+  latencyMs?: number;
+  semanticAvailable?: boolean;
+  selectedRecipeId?: string;
+  hybridRank?: number | null;
+  keywordRank?: number | null;
+  semanticRank?: number | null;
+}
+
+export const searchStatsKey = ['search-stats'] as const;
+export const searchEventsKey = ['search-events'] as const;
+
+/** GET /search-events/stats — MRR, rank-1 rate and latency per ranking strategy. */
+export function useSearchStats(days: number) {
+  return useQuery({
+    queryKey: [...searchStatsKey, days],
+    queryFn: () => request<SearchStats>(`/search-events/stats?days=${days}`),
+    staleTime: 60 * 1000,
+  });
+}
+
+/** GET /search-events — the raw event log behind the stats, newest first. */
+export function useSearchEvents(days: number, userId?: string) {
+  return useQuery({
+    queryKey: [...searchEventsKey, days, userId ?? 'all'],
+    queryFn: () =>
+      request<{ events: SearchEventRow[]; total: number; truncated: boolean }>(
+        `/search-events?days=${days}&limit=200${userId ? `&userId=${encodeURIComponent(userId)}` : ''}`,
+      ),
+    staleTime: 60 * 1000,
+  });
+}

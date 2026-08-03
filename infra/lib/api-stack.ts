@@ -24,6 +24,7 @@ export interface ApiStackProps extends cdk.StackProps {
   failuresTable: dynamodb.ITable;
   shoppingTable: dynamodb.ITable;
   categoryCacheTable: dynamodb.ITable;
+  searchEventsTable: dynamodb.ITable;
   modelsBucket: s3.IBucket;
   avatarsBucket: s3.IBucket;
   certificate: acm.ICertificate;
@@ -36,7 +37,7 @@ export class ApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
-    const { deployEnv, recipesTable, failuresTable, shoppingTable, categoryCacheTable, modelsBucket, avatarsBucket, certificate, zone, appDomain, webDomain } = props;
+    const { deployEnv, recipesTable, failuresTable, shoppingTable, categoryCacheTable, searchEventsTable, modelsBucket, avatarsBucket, certificate, zone, appDomain, webDomain } = props;
 
     // ── Shared Cognito user pool ──────────────────────────────────────────────
     const userPoolId = ssm.StringParameter.valueForStringParameter(
@@ -406,6 +407,58 @@ export class ApiStack extends cdk.Stack {
       ],
     }));
 
+    // ── Lambda: /search-events/* (RECP-21) ────────────────────────────────────
+    // Retention applies to raw query text, which is personal data. Kept as an env var so it
+    // can be tuned without touching the table's TTL wiring.
+    const searchEventsRetentionDays = '90';
+
+    const searchEventsRecordFn = new nodejs.NodejsFunction(this, 'SearchEventsRecordFn', {
+      functionName: `recipator-search-events-record-${deployEnv}`,
+      entry: path.join(__dirname, '../lambda/search-events/record.ts'),
+      handler: 'handler',
+      runtime,
+      environment: {
+        ...commonEnv,
+        SEARCH_EVENTS_TABLE: searchEventsTable.tableName,
+        RETENTION_DAYS: searchEventsRetentionDays,
+      },
+      bundling,
+      logGroup: logGroupFor('SearchEventsRecordFnLogs', `recipator-search-events-record-${deployEnv}`),
+    });
+    searchEventsTable.grantWriteData(searchEventsRecordFn);
+
+    const searchEventsStatsFn = new nodejs.NodejsFunction(this, 'SearchEventsStatsFn', {
+      functionName: `recipator-search-events-stats-${deployEnv}`,
+      entry: path.join(__dirname, '../lambda/search-events/stats.ts'),
+      handler: 'handler',
+      runtime,
+      environment: {
+        ...commonEnv,
+        SEARCH_EVENTS_TABLE: searchEventsTable.tableName,
+        GROUP_MEMBERS_PARAM: groupMembersParam.parameterName,
+      },
+      bundling,
+      logGroup: logGroupFor('SearchEventsStatsFnLogs', `recipator-search-events-stats-${deployEnv}`),
+    });
+    searchEventsTable.grantReadData(searchEventsStatsFn);
+    groupMembersParam.grantRead(searchEventsStatsFn);
+
+    const searchEventsListFn = new nodejs.NodejsFunction(this, 'SearchEventsListFn', {
+      functionName: `recipator-search-events-list-${deployEnv}`,
+      entry: path.join(__dirname, '../lambda/search-events/list.ts'),
+      handler: 'handler',
+      runtime,
+      environment: {
+        ...commonEnv,
+        SEARCH_EVENTS_TABLE: searchEventsTable.tableName,
+        GROUP_MEMBERS_PARAM: groupMembersParam.parameterName,
+      },
+      bundling,
+      logGroup: logGroupFor('SearchEventsListFnLogs', `recipator-search-events-list-${deployEnv}`),
+    });
+    searchEventsTable.grantReadData(searchEventsListFn);
+    groupMembersParam.grantRead(searchEventsListFn);
+
     // ── JWT authoriser ────────────────────────────────────────────────────────
     const authorizer = new HttpJwtAuthorizer(
       'CognitoAuthorizer',
@@ -459,6 +512,11 @@ export class ApiStack extends cdk.Stack {
     api.addRoutes({ path: '/shopping/items/{itemId}', methods: [apigwv2.HttpMethod.PATCH, apigwv2.HttpMethod.DELETE], integration: shoppingInt });
     api.addRoutes({ path: '/shopping/clear-ticked',  methods: [apigwv2.HttpMethod.POST],   integration: shoppingInt });
     api.addRoutes({ path: '/shopping/clear-all',     methods: [apigwv2.HttpMethod.POST],   integration: shoppingInt });
+
+    // Search scoring (RECP-21).
+    api.addRoutes({ path: '/search-events',       methods: [apigwv2.HttpMethod.POST], integration: new HttpLambdaIntegration('SearchEventsRecordInt', searchEventsRecordFn) });
+    api.addRoutes({ path: '/search-events',       methods: [apigwv2.HttpMethod.GET],  integration: new HttpLambdaIntegration('SearchEventsListInt',   searchEventsListFn) });
+    api.addRoutes({ path: '/search-events/stats', methods: [apigwv2.HttpMethod.GET],  integration: new HttpLambdaIntegration('SearchEventsStatsInt',  searchEventsStatsFn) });
 
     // ── Access logging (RECP-58) ──────────────────────────────────────────────
     // The default stage had no access log. When a client wedged itself in a 4xx retry loop, all

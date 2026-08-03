@@ -14,6 +14,7 @@ export class DataStack extends cdk.Stack {
   readonly avatarsBucket: s3.Bucket;
   readonly shoppingTable: dynamodb.Table;
   readonly categoryCacheTable: dynamodb.Table;
+  readonly searchEventsTable: dynamodb.Table;
 
   constructor(scope: Construct, id: string, props: DataStackProps) {
     super(scope, id, props);
@@ -89,11 +90,35 @@ export class DataStack extends cdk.Stack {
       removalPolicy,
     });
 
+    // search events (RECP-21): implicit relevance feedback for search scoring.
+    //   PK = USER#{userId}
+    //   SK = SEARCH#{isoTs}#{searchId}
+    // One item per search, written when the query settles and updated in place if the user
+    // taps a result — so an abandoned search is simply an item with no selection attributes,
+    // and counts as reciprocal rank 0 rather than vanishing from the denominator.
+    //
+    // Each item carries the selected recipe's rank in all three rankings (keyword-only,
+    // semantic-only, merged hybrid). Search always runs both strategies, so every real search
+    // scores all three counterfactually — no A/B split, no degraded results for anyone.
+    //
+    // The timestamp is in the SK so a date-range query is a plain SK range on the user's
+    // partition; at household volume that beats carrying a GSI. TTL expires raw query text
+    // (personal data) after RETENTION_DAYS.
+    this.searchEventsTable = new dynamodb.Table(this, 'SearchEventsTable', {
+      tableName: `recipator-search-events-${deployEnv}`,
+      partitionKey: { name: 'pk', type: dynamodb.AttributeType.STRING },
+      sortKey:      { name: 'sk', type: dynamodb.AttributeType.STRING },
+      billingMode:  dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy,
+      timeToLiveAttribute: 'ttl',
+    });
+
     new cdk.CfnOutput(this, 'RecipesTableName', { value: this.recipesTable.tableName });
     new cdk.CfnOutput(this, 'FailuresTableName', { value: this.failuresTable.tableName });
     new cdk.CfnOutput(this, 'ModelsBucketName', { value: this.modelsBucket.bucketName });
     new cdk.CfnOutput(this, 'AvatarsBucketName', { value: this.avatarsBucket.bucketName });
     new cdk.CfnOutput(this, 'ShoppingTableName', { value: this.shoppingTable.tableName });
     new cdk.CfnOutput(this, 'CategoryCacheTableName', { value: this.categoryCacheTable.tableName });
+    new cdk.CfnOutput(this, 'SearchEventsTableName', { value: this.searchEventsTable.tableName });
   }
 }

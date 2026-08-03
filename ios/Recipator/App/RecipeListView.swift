@@ -17,6 +17,13 @@ struct RecipeListView: View {
     @StateObject private var search = RecipeSearchModel()
     @State private var searchText = ""
     @State private var rankedIds: [String]? = nil   // nil = not yet computed for this query
+    // Search scoring (RECP-21). `outcome` keeps the keyword and semantic rankings alongside the
+    // merged list so a tap can be scored against all three; `searchLoggedAt` is the timestamp
+    // the search event was written with, needed to rebuild the server-side key on selection.
+    @State private var outcome: SearchOutcome? = nil
+    @State private var loggedSearchId: String? = nil
+    @State private var searchLoggedAt: Date? = nil
+    @State private var lastLoggedQuery: String? = nil
     // Re-open the recipe the user last had open, across launches and sign-ins (RECP-56). Cleared
     // when they close it; a deleted/unreachable recipe is silently skipped on restore.
     @AppStorage("lastOpenRecipeId") private var lastOpenRecipeId = ""
@@ -208,14 +215,17 @@ struct RecipeListView: View {
         // Debounced search: recompute when the query settles, and again whenever the search
         // index is re-synced (search.indexVersion) so freshly-synced data fills in live.
         .task(id: "\(search.indexVersion)\u{0}\(searchText)") {
-            guard isSearching else { rankedIds = nil; return }
-            guard search.hasSearchCapability else { rankedIds = nil; return }
+            guard isSearching else { rankedIds = nil; clearScoring(); return }
+            guard search.hasSearchCapability else { rankedIds = nil; clearScoring(); return }
             rankedIds = nil
             try? await Task.sleep(for: .milliseconds(250))
             if Task.isCancelled { return }
             let candidates = Set(displayedRecipes.map(\.recipeId))
             let result = await search.search(searchText, candidates: candidates)
-            if !Task.isCancelled { rankedIds = result }
+            if !Task.isCancelled {
+                rankedIds = result.ranked
+                recordSearch(result)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             // Re-fetch the list AND re-sync the search index — a recipe added via the share
@@ -224,7 +234,64 @@ struct RecipeListView: View {
                 await fetch()
                 await search.sync(knownRecipeIds: Set(allRecipes.map(\.recipeId)))
             }
+            // Anything queued while offline or signed out gets another chance (RECP-21).
+            Task { await SearchEventQueue.shared.flush() }
         }
+    }
+
+    // MARK: - Search scoring (RECP-21)
+
+    /// Record one search event per settled query.
+    ///
+    /// The search task also re-fires whenever the index re-syncs (`search.indexVersion`), which
+    /// re-ranks the *same* query. Those refresh the stored rankings — so a later tap is scored
+    /// against what the user actually saw — but must not emit a second search event, or one
+    /// search would be counted several times. The searchId and timestamp from the first emission
+    /// are kept so the selection event still resolves to the right item server-side.
+    private func recordSearch(_ result: SearchOutcome) {
+        outcome = result
+        let query = trimmedQuery
+        guard !result.isEmpty, lastLoggedQuery != query else { return }
+
+        let at = Date()
+        lastLoggedQuery = query
+        loggedSearchId = result.searchId
+        searchLoggedAt = at
+
+        let event = SearchEvent.search(
+            searchId: result.searchId, at: at, query: query,
+            resultCount: result.ranked.count,
+            keywordCount: result.keywordRanked.count,
+            semanticCount: result.semanticRanked.count,
+            semanticAvailable: result.semanticAvailable,
+            latencyMs: result.latencyMs, keywordMs: result.keywordMs, semanticMs: result.semanticMs,
+            modelVersion: search.manager.version,
+        )
+        Task { await SearchEventQueue.shared.enqueue(event) }
+    }
+
+    /// Score a tap against all three rankings. No-op when the user is browsing rather than
+    /// searching — `recipeList` renders both.
+    private func recordSelection(_ recipeId: String) {
+        guard isSearching,
+              let result = outcome, !result.isEmpty,
+              let searchId = loggedSearchId,
+              let searchAt = searchLoggedAt else { return }
+
+        let ranks = result.ranks(of: recipeId, visible: visibleRecipes.map(\.recipeId))
+        let event = SearchEvent.selection(
+            searchId: searchId, searchAt: searchAt,
+            selectedRecipeId: recipeId, selectedAt: Date(),
+            hybridRank: ranks.hybrid, keywordRank: ranks.keyword, semanticRank: ranks.semantic,
+        )
+        Task { await SearchEventQueue.shared.enqueue(event) }
+    }
+
+    private func clearScoring() {
+        outcome = nil
+        loggedSearchId = nil
+        searchLoggedAt = nil
+        lastLoggedQuery = nil
     }
 
     // MARK: - Search UI
@@ -260,6 +327,7 @@ struct RecipeListView: View {
         let list = List {
             ForEach(recipes) { recipe in
                 Button {
+                    recordSelection(recipe.recipeId)
                     Task { await load(recipe.recipeId, userId: recipe.userId) }
                 } label: {
                     RecipeRow(recipe: recipe, showOwner: selectedUserId == everyoneTag)

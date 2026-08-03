@@ -3,6 +3,7 @@ import Home from '@/routes/Home';
 import LoggedIn from '@/routes/LoggedIn';
 import Logout from '@/routes/Logout';
 import RecipeDetail from '@/routes/RecipeDetail';
+import SearchInsights from '@/routes/SearchInsights';
 import Shopping from '@/routes/Shopping';
 
 const rootRoute = createRootRoute({
@@ -39,12 +40,19 @@ const shoppingRoute = createRoute({
   component: Shopping,
 });
 
+const searchInsightsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/search-insights',
+  component: SearchInsights,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loggedInRoute,
   logoutRoute,
   recipeRoute,
   shoppingRoute,
+  searchInsightsRoute,
 ]);
 
 export const router = createRouter({ routeTree });

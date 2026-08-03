@@ -34,6 +34,13 @@ function AppHeader({ onSignOut }: AppHeaderProps) {
         >
           Shopping
         </Link>
+        <Link
+          to="/search-insights"
+          className={navLinkClass}
+          activeProps={{ className: navLinkActiveClass }}
+        >
+          Insights
+        </Link>
       </nav>
 
       <Button variant="outline" size="sm" className="ml-auto" onClick={onSignOut}>

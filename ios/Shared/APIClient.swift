@@ -52,6 +52,74 @@ struct SearchIndexRow: Codable {
     let embedding: String?   // nil until the recipe has been embedded
 }
 
+/// A search-scoring event (RECP-21). One shape covers both kinds, discriminated on `type`,
+/// so the queue can hold a single homogeneous array and the encoder simply omits the fields
+/// that don't apply. Lives here rather than in Search/ because APIClient is compiled into the
+/// Share Extension too, which must not depend on app-only sources.
+struct SearchEvent: Codable {
+    let type: String
+    let searchId: String
+
+    // type == "search"
+    var at: String?
+    var query: String?
+    var resultCount: Int?
+    var keywordCount: Int?
+    var semanticCount: Int?
+    var semanticAvailable: Bool?
+    var latencyMs: Int?
+    var keywordMs: Int?
+    var semanticMs: Int?
+    var modelVersion: String?
+    var appVersion: String?
+
+    // type == "selection"
+    var searchAt: String?
+    var selectedRecipeId: String?
+    var selectedAt: String?
+    var msToSelect: Int?
+    var hybridRank: Int?
+    var keywordRank: Int?
+    var semanticRank: Int?
+
+    static func search(
+        searchId: String, at: Date, query: String,
+        resultCount: Int, keywordCount: Int, semanticCount: Int, semanticAvailable: Bool,
+        latencyMs: Int, keywordMs: Int, semanticMs: Int, modelVersion: String?
+    ) -> SearchEvent {
+        SearchEvent(
+            type: "search", searchId: searchId,
+            at: iso(at), query: query,
+            resultCount: resultCount, keywordCount: keywordCount, semanticCount: semanticCount,
+            semanticAvailable: semanticAvailable,
+            latencyMs: latencyMs, keywordMs: keywordMs, semanticMs: semanticMs,
+            modelVersion: modelVersion, appVersion: Bundle.main.appVersion,
+        )
+    }
+
+    static func selection(
+        searchId: String, searchAt: Date, selectedRecipeId: String, selectedAt: Date,
+        hybridRank: Int?, keywordRank: Int?, semanticRank: Int?
+    ) -> SearchEvent {
+        SearchEvent(
+            type: "selection", searchId: searchId,
+            searchAt: iso(searchAt), selectedRecipeId: selectedRecipeId, selectedAt: iso(selectedAt),
+            msToSelect: Int(selectedAt.timeIntervalSince(searchAt) * 1000),
+            hybridRank: hybridRank, keywordRank: keywordRank, semanticRank: semanticRank,
+        )
+    }
+
+    /// Fractional seconds matter: the sort key is built from this, and two searches in the
+    /// same second must not collide.
+    private static let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
+    private static func iso(_ date: Date) -> String { isoFormatter.string(from: date) }
+}
+
 struct RecipeDetail: Codable, Identifiable {
     let recipeId: String
     let title: String
@@ -247,6 +315,15 @@ final class APIClient {
     func reportFailure(url: String, errorType: String, htmlSnippet: String? = nil) async throws {
         struct Body: Encodable { let url: String; let errorType: String; let htmlSnippet: String? }
         _ = try await request("/failures", method: "POST", body: Body(url: url, errorType: errorType, htmlSnippet: htmlSnippet))
+    }
+
+    // MARK: - Search scoring (RECP-21)
+
+    /// Batch-upload queued search and selection events. Called only by SearchEventQueue,
+    /// which owns retry and ordering.
+    func postSearchEvents(_ events: [SearchEvent]) async throws {
+        struct Body: Encodable { let events: [SearchEvent] }
+        _ = try await request("/search-events", method: "POST", body: Body(events: events))
     }
 
     // MARK: - Shopping list (RECP-37)
