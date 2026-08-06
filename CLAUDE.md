@@ -74,15 +74,30 @@ Recipator is distributed via **Unlisted App Distribution**: a permanent, non-exp
 App Store install reachable **only by direct link**, kept out of search/charts/categories.
 This is deliberate — it's a personal/family app, not a public release. (TestFlight was
 rejected because builds expire after 90 days; public listing because it must not be
-discoverable; ABM/ASM because the users are family, not a managed org.) Unlisted
-distribution requested via developer.apple.com/contact/request/unlisted-app on 2026-06-15.
+discoverable; ABM/ASM because the users are family, not a managed org.)
+
+**Live since 2026-08-06:** https://apps.apple.com/gb/app/recipator/id6780017315
+
+Unlisted distribution is now provisioned on the app record, so App Distribution Methods no
+longer offers a Public/Private choice at all — it just shows the unlisted URL. Availability is
+set to **all 175 countries**, which is deliberate: for an unlisted app, availability and
+discoverability are independent, so restricting territories buys no privacy and only risks
+breaking the link for anyone on a different storefront.
 
 **Do NOT make it public.** Concretely:
-- Keep App Store version on **manual release** (never "Automatically release").
-- The fastlane `submit` lane (`submit_for_review` + `automatic_release`) is for a *public*
-  release — **don't run it** for normal distribution. Day-to-day distribution is just the
-  `beta` lane (TestFlight) for testing; the unlisted public-link install is the family path.
-- Builds still go through normal App Review once; unlisted only changes discoverability.
+- Never re-list it or otherwise undo the unlisted distribution method.
+- Builds go through normal App Review; unlisted only changes discoverability, not scrutiny.
+
+The fastlane `submit` lane (`submit_for_review` + `automatic_release`) is **fine to run** now
+that the app is unlisted — `automatic_release` controls *when* an approved build goes live, not
+*who can find it*. (An earlier version of this file said not to run it. That was correct only
+while unlisted was still pending and Public was the sole available setting.)
+
+Getting here took four rejections over seven weeks, all on Guideline 3.2, and none of them
+about the app itself. If anything similar recurs, see the `appstore-32-rejection-unlisted`
+memory — the short version is that emailing `unlisted_app_requests@apple.com` only ever
+produced templates, while an **App Store Connect Contact Us case** carrying a reproduction path
+and explicit eliminations got it fixed in about two hours.
 
 ## Project generation
 
