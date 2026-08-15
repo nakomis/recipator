@@ -6,14 +6,69 @@ default_platform(:ios)
 RELEASE_NOTES = <<~NOTES.freeze
   What's new:
 
-  • Tick ingredients off as you cook — tap one to mark it done, and use “Clear all” to reset the list. Your ticks are saved per recipe, so you can come back later and see what's left.
-  • The app now remembers where you were — it reopens to the tab and the recipe you last had open.
-  • No more session timeout errors — you stay signed in.
+  • You can now edit a saved recipe — tap the pencil at the top of a recipe to fix the title, change the ingredients or steps, or reorder them. Handy when the original page got something wrong or padded it out.
+  • New Notes field for your own additions: “halve the chilli”, “needs a deeper tin”, whatever you'd have scribbled in the margin. Notes are searchable too.
+  • Previous versions of a recipe are kept safely, so an edit can never lose the original.
 
-  Please try cooking from a recipe (tick a few ingredients, close and reopen it) and let me know how it feels.
+  Please try editing a recipe (change a few ingredients, add a note) and let me know how it feels.
 NOTES
 
+# "What's New" for the App Store version record. Same news as the TestFlight notes, minus
+# the "tell me how it goes" ask — this one is read by whoever installs from the store link.
+APP_STORE_NOTES = <<~NOTES.freeze
+  • You can now edit a saved recipe — tap the pencil at the top of a recipe to fix the title, change the ingredients or steps, or reorder them. Handy when the original page got something wrong or padded it out.
+  • New Notes field for your own additions: “halve the chilli”, “needs a deeper tin”, whatever you'd have scribbled in the margin. Notes are searchable too.
+  • Previous versions of a recipe are kept safely, so an edit can never lose the original.
+NOTES
+
+# App Store Connect API credentials: env vars on CI, local keychain on a dev machine.
+def asc_api_key
+  key_id      = ENV["ASC_KEY_ID"]      || `security find-generic-password -s app-store-connect -a key-id      -w 2>/dev/null`.strip
+  issuer_id   = ENV["ASC_ISSUER_ID"]   || `security find-generic-password -s app-store-connect -a issuer-id   -w 2>/dev/null`.strip
+  key_content = ENV["ASC_KEY_CONTENT"] || `security find-generic-password -s app-store-connect -a key-content -w 2>/dev/null`.strip
+  app_store_connect_api_key(
+    key_id:                key_id,
+    issuer_id:             issuer_id,
+    key_content:           key_content,
+    is_key_content_base64: true,
+  )
+end
+
 platform :ios do
+  desc "Create (or reuse) the App Store version record and set its What's New notes"
+  lane :prepare_version do |options|
+    version = options[:version] or UI.user_error!("Pass version: e.g. `fastlane prepare_version version:1.1`")
+    notes   = options[:notes] || APP_STORE_NOTES
+
+    api_key = asc_api_key
+    require "spaceship"
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id:    api_key[:key_id],
+      issuer_id: api_key[:issuer_id],
+      key:       Base64.decode64(api_key[:key]),
+    )
+
+    app = Spaceship::ConnectAPI::App.find("com.nakomis.recipator")
+    edit = app.get_edit_app_store_version
+
+    if edit.nil?
+      UI.message("No editable version — creating #{version}…")
+      edit = app.create_version!(version_string: version.to_s)
+    elsif edit.version_string != version.to_s
+      UI.message("Editable version is #{edit.version_string} — renaming to #{version}…")
+      edit = edit.update(attributes: { versionString: version.to_s })
+    else
+      UI.message("Version #{version} already exists in #{edit.app_store_state} — reusing it.")
+    end
+
+    edit.get_app_store_version_localizations.each do |loc|
+      loc.update(attributes: { whatsNew: notes })
+      UI.message("What's New set for #{loc.locale}")
+    end
+
+    UI.success("Version #{version} ready (#{edit.app_store_state}).")
+  end
+
   desc "Run unit tests"
   lane :test do
     run_tests(
@@ -100,6 +155,9 @@ platform :ios do
 
     deliver(
       api_key:             api_key,
+      # Target an explicit version when given (`fastlane submit version:1.1`), so the build
+      # lands on the version record prepare_version created rather than whatever is editable.
+      app_version:         options[:version],
       build_number:        build_number,
       submit_for_review:   true,
       automatic_release:   true,
