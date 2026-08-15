@@ -5,6 +5,7 @@ import { LambdaClient, InvokeCommand, InvocationType } from '@aws-sdk/client-lam
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { randomUUID } from 'crypto';
 import { log } from '../shared/logger';
+import { buildMarkdown } from '../shared/markdown';
 
 const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const lambdaClient = new LambdaClient({});
@@ -272,12 +273,3 @@ async function extractWithClaude(html: string, url: string): Promise<ExtractedRe
   }
 }
 
-// ── Markdown builder ──────────────────────────────────────────────────────────
-
-function buildMarkdown(recipe: ExtractedRecipe, url: string): string {
-  let md = `# ${recipe.title}\n\nSource: ${url}\n\n## Ingredients\n\n`;
-  for (const i of recipe.ingredients) md += `- ${i}\n`;
-  md += '\n## Method\n\n';
-  for (let i = 0; i < recipe.method.length; i++) md += `${i + 1}. ${recipe.method[i]}\n`;
-  return md;
-}

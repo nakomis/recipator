@@ -43,6 +43,7 @@ const apiStack = new ApiStack(app, 'RecipatorApiStack', {
   ...londonEnv,
   deployEnv,
   recipesTable: dataStack.recipesTable,
+  recipeVersionsTable: dataStack.recipeVersionsTable,
   failuresTable: dataStack.failuresTable,
   shoppingTable: dataStack.shoppingTable,
   categoryCacheTable: dataStack.categoryCacheTable,

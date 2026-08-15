@@ -189,7 +189,14 @@ struct RecipeListView: View {
                 lastOpenRecipeId = ""
                 lastOpenRecipeUserId = ""
             }) { detail in
-                RecipeDetailView(recipe: detail)
+                RecipeDetailView(recipe: detail) { _ in
+                    // An edit changes the row's title and the searchable text, so refresh
+                    // both the list and the on-device index (RECP-59).
+                    Task {
+                        await fetch()
+                        await search.sync(knownRecipeIds: Set(allRecipes.map(\.recipeId)))
+                    }
+                }
             }
         }
         .task {
@@ -418,9 +425,13 @@ struct RecipeRow: View {
 }
 
 struct RecipeDetailView: View {
-    let recipe: RecipeDetail
+    /// Mutable so an edit (RECP-59) shows immediately, without a round trip to the list.
+    @State private var recipe: RecipeDetail
+    /// Tells the list an edit landed, so the row's title/image catch up too.
+    private let onEdited: (RecipeDetail) -> Void
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var auth: AuthService
+    @State private var isEditing = false
     /// Ingredients ticked off while cooking, by index (so duplicate lines tick independently).
     /// Persisted per-recipe in UserDefaults (see `checkedKey`) so they survive closing the recipe,
     /// a force-quit, or a re-login — you can come back and see what's left to do (RECP-56).
@@ -428,6 +439,11 @@ struct RecipeDetailView: View {
 
     /// UserDefaults key holding this recipe's ticked-ingredient indices.
     private var checkedKey: String { "checkedIngredients.\(recipe.recipeId)" }
+
+    init(recipe: RecipeDetail, onEdited: @escaping (RecipeDetail) -> Void = { _ in }) {
+        _recipe = State(initialValue: recipe)
+        self.onEdited = onEdited
+    }
 
     var body: some View {
         NavigationStack {
@@ -509,6 +525,12 @@ struct RecipeDetailView: View {
                         .padding(.vertical, 2)
                     }
                 }
+
+                if let notes = recipe.notes, !notes.isEmpty {
+                    Section("Notes") {
+                        Text(notes)
+                    }
+                }
             }
             .navigationTitle(recipe.title)
             .navigationBarTitleDisplayMode(.inline)
@@ -518,6 +540,23 @@ struct RecipeDetailView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     ShareLink(item: recipe.markdown)
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        isEditing = true
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                    }
+                    .accessibilityLabel("Edit recipe")
+                }
+            }
+            .sheet(isPresented: $isEditing) {
+                RecipeEditView(recipe: recipe) { updated in
+                    // Ticks are held by index, so an edit that adds, removes, or reorders
+                    // ingredients would leave them pointing at the wrong lines — clear them.
+                    if updated.ingredients != recipe.ingredients { checkedIngredients.removeAll() }
+                    recipe = updated
+                    onEdited(updated)
                 }
             }
             // Keep the screen awake while a recipe is open (you're cooking from it,

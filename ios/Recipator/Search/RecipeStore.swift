@@ -42,6 +42,19 @@ final class RecipeStore {
                 t.column("method")
             }
         }
+        m.registerMigration("v3-fts-notes") { db in
+            // FTS5 has no ADD COLUMN, so the index is rebuilt with `notes` (RECP-59).
+            // Dropping the contents costs nothing: the index is a cache of the server's
+            // /embeddings response and the next background sync refills it in full.
+            try db.execute(sql: "DROP TABLE IF EXISTS recipeFTS")
+            try db.create(virtualTable: "recipeFTS", using: FTS5()) { t in
+                t.column("recipeId").notIndexed()
+                t.column("title")
+                t.column("ingredients")
+                t.column("method")
+                t.column("notes")
+            }
+        }
         return m
     }
 
@@ -54,11 +67,12 @@ final class RecipeStore {
                 // FTS5 has no UPSERT — replace the row for this recipe.
                 try db.execute(sql: "DELETE FROM recipeFTS WHERE recipeId = ?", arguments: [r.recipeId])
                 try db.execute(sql: """
-                    INSERT INTO recipeFTS (recipeId, title, ingredients, method)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO recipeFTS (recipeId, title, ingredients, method, notes)
+                    VALUES (?, ?, ?, ?, ?)
                     """, arguments: [r.recipeId, r.title,
                                      r.ingredients.joined(separator: " "),
-                                     r.method.joined(separator: " ")])
+                                     r.method.joined(separator: " "),
+                                     r.notes ?? ""])
 
                 if let b64 = r.embedding, let data = Data(base64Encoded: b64) {
                     try db.execute(sql: """
@@ -103,7 +117,7 @@ final class RecipeStore {
         }
     }
 
-    /// FTS5 keyword search over title/ingredients/method, best-match first (bm25).
+    /// FTS5 keyword search over title/ingredients/method/notes, best-match first (bm25).
     /// Tokens are sanitised and prefix-matched ("bind" matches "binding"); OR'd for recall.
     func ftsSearch(_ query: String, restrictedTo ids: Set<String>? = nil) throws -> [String] {
         let tokens = query.lowercased()
@@ -113,12 +127,13 @@ final class RecipeStore {
         guard !tokens.isEmpty else { return [] }
         let match = tokens.joined(separator: " OR ")
         return try dbQueue.read { db in
-            // Weights per column in table order (recipeId, title, ingredients, method);
+            // Weights per column in table order (recipeId, title, ingredients, method, notes);
             // recipeId is unindexed so its weight is irrelevant. Title matches rank highest.
+            // Notes are hand-written and deliberate, so they rank between ingredients and method.
             try String.fetchAll(db, sql: """
                 SELECT recipeId FROM recipeFTS
                 WHERE recipeFTS MATCH ?
-                ORDER BY bm25(recipeFTS, 0.0, 10.0, 5.0, 3.0)
+                ORDER BY bm25(recipeFTS, 0.0, 10.0, 5.0, 3.0, 4.0)
                 """, arguments: [match])
                 .filter { ids?.contains($0) ?? true }
         }

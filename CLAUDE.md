@@ -15,7 +15,9 @@ which we don't want to publish. This overrides the global end-of-session bloggin
 - **Share Extension** — `com.apple.share-services`, receives URLs from Chrome/Safari share sheet
 - **API** — API Gateway HTTP API + Lambda (Node 22), Cognito JWT authoriser (native, no authorizer Lambda)
 - **Extraction** — schema.org/Recipe JSON-LD first; Claude Haiku (`claude-haiku-4-5-20251001`) fallback server-side via Amazon Bedrock (`eu.` inference profile; IAM, no API key)
-- **Storage** — DynamoDB `recipator-recipes-{env}` (userId PK, recipeId SK, TTL soft-delete)
+- **Storage** — DynamoDB `recipator-recipes-{env}` (userId PK, recipeId SK, TTL soft-delete);
+  `recipator-recipe-versions-{env}` (recipeId PK, changedAt SK) holds the pre-edit snapshot of
+  every content edit (RECP-59) — write-only for now, no UI reads it yet
 - **Auth** — Shared Cognito user pool (`/nakomis-infra/{env}/cognito/user-pool-id`); iOS PKCE flow
 - **Chrome extension** — planned
 
@@ -28,6 +30,7 @@ which we don't want to publish. This overrides the global end-of-session bloggin
 | POST | /extract | Fetch URL, extract recipe, save to DynamoDB; async-invokes embed-Lambda |
 | GET | /recipes | List user's recipes |
 | GET | /recipes/{id} | Get one recipe |
+| PATCH | /recipes/{id} | Edit title/url/ingredients/method/notes (versions the old copy, rebuilds markdown, re-embeds) or set imageUrl. `?userId=` to edit a household member's recipe |
 | DELETE | /recipes/{id} | Soft delete (TTL 6 months) |
 | POST | /failures | Report a capture failure |
 | GET | /model | Presigned download URL + manifest for the on-device embedding model |
@@ -53,7 +56,7 @@ which we don't want to publish. This overrides the global end-of-session bloggin
   `/model` URL on first launch, verifies sha256, compiles + warms up in the background
   (search disabled until ready). Publish a model with `infra/scripts/publish-model.sh`.
 - **On-device**: GRDB store synced from `/embeddings` in the background. Two indexes:
-  semantic (mxbai vectors, cosine) and **FTS5** keyword (title + ingredients + method).
+  semantic (mxbai vectors, cosine) and **FTS5** keyword (title + ingredients + method + notes).
   Query embedded on-device (`BertTokenizer` + `CoreMLEmbedder`, in `ios/Recipator/Search/`).
 - **Hybrid ranking**: keyword (FTS) hits first, then semantically-similar recipes. Keyword
   search works as soon as text syncs (no model needed); semantic joins once the model lands.

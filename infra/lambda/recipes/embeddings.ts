@@ -19,7 +19,7 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
   const all = event.queryStringParameters?.all === 'true';
   // Alias every projected attribute via ExpressionAttributeNames — `method` is a DynamoDB
   // reserved keyword (others may be added later), and a bare name fails the whole query.
-  const attrs = ['recipeId', 'userId', 'title', 'ingredients', 'method', 'embedding', 'embeddingModel', 'embeddedAt'];
+  const attrs = ['recipeId', 'userId', 'title', 'ingredients', 'method', 'notes', 'embedding', 'embeddingModel', 'embeddedAt'];
   const names = Object.fromEntries(attrs.map(a => [`#${a}`, a]));
   const projection = attrs.map(a => `#${a}`).join(', ');
   const notDeleted = 'attribute_not_exists(deletedAt)';
@@ -56,6 +56,7 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
       title: (it.title as string) ?? '',
       ingredients: (it.ingredients as string[]) ?? [],
       method: (it.method as string[]) ?? [],
+      notes: (it.notes as string) ?? null,
       model: (it.embeddingModel as string) ?? null,
       embeddedAt: (it.embeddedAt as string) ?? null,
       // lib-dynamodb unmarshalls Binary to Uint8Array; null until embedded.
