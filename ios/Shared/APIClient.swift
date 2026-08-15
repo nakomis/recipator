@@ -47,6 +47,7 @@ struct SearchIndexRow: Codable {
     let title: String
     let ingredients: [String]
     let method: [String]
+    let notes: String?
     let model: String?
     let embeddedAt: String?
     let embedding: String?   // nil until the recipe has been embedded
@@ -54,11 +55,16 @@ struct SearchIndexRow: Codable {
 
 struct RecipeDetail: Codable, Identifiable {
     let recipeId: String
+    /// The owner — nil on responses that predate it being returned; the editor needs it
+    /// to patch another household member's recipe (RECP-59).
+    let userId: String?
     let title: String
     let url: String
     let savedAt: String
     let ingredients: [String]
     let method: [String]
+    /// Free-text notes added by hand in the app. nil on recipes never edited.
+    let notes: String?
     let markdown: String
     let imageUrl: String?
     let imageCandidates: [String]?
@@ -203,6 +209,32 @@ final class APIClient {
     func updateRecipeImage(id: String, imageUrl: String) async throws {
         struct Body: Encodable { let imageUrl: String }
         _ = try await request("/recipes/\(id)", method: "PATCH", body: Body(imageUrl: imageUrl))
+    }
+
+    /// Edit a recipe's content (RECP-59). The server snapshots the previous version,
+    /// rebuilds the markdown, re-embeds when the searchable text moved, and returns the
+    /// updated recipe. `userId` is the owner — pass it to edit another household
+    /// member's recipe, as `getRecipe` does.
+    @discardableResult
+    func updateRecipe(
+        id: String, userId: String? = nil,
+        title: String, url: String, ingredients: [String], method: [String], notes: String
+    ) async throws -> RecipeDetail {
+        struct Body: Encodable {
+            let title: String; let url: String
+            let ingredients: [String]; let method: [String]; let notes: String
+        }
+        var path = "/recipes/\(id)"
+        if let userId { path += "?userId=\(userId)" }
+        let data = try await request(
+            path, method: "PATCH",
+            body: Body(title: title, url: url, ingredients: ingredients, method: method, notes: notes)
+        )
+        struct Response: Decodable { let recipe: RecipeDetail }
+        guard let updated = (try? JSONDecoder().decode(Response.self, from: data))?.recipe else {
+            throw APIError.server(0, "Decoding failed")
+        }
+        return updated
     }
 
     func getConfig() async throws -> [GroupMember] {

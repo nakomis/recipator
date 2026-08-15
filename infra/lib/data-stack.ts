@@ -9,6 +9,7 @@ export interface DataStackProps extends cdk.StackProps {
 
 export class DataStack extends cdk.Stack {
   readonly recipesTable: dynamodb.Table;
+  readonly recipeVersionsTable: dynamodb.Table;
   readonly failuresTable: dynamodb.Table;
   readonly modelsBucket: s3.Bucket;
   readonly avatarsBucket: s3.Bucket;
@@ -31,6 +32,21 @@ export class DataStack extends cdk.Stack {
       billingMode:  dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy,
       timeToLiveAttribute: 'ttl',
+    });
+
+    // recipe versions (RECP-59): the recipe as it was *before* each edit.
+    //   PK = recipeId, SK = changedAt (ISO 8601)
+    // Written by PATCH /recipes/{id} whenever a content field changes, so an edit is
+    // always recoverable. Keyed on recipeId alone (not userId) — a version belongs to
+    // the recipe, and any household member may make the edit; `changedBy` records who
+    // did. Nothing reads this yet: history has no UI, that comes later.
+    this.recipeVersionsTable = new dynamodb.Table(this, 'RecipeVersionsTable', {
+      tableName: `recipator-recipe-versions-${deployEnv}`,
+      partitionKey: { name: 'recipeId', type: dynamodb.AttributeType.STRING },
+      sortKey:      { name: 'changedAt', type: dynamodb.AttributeType.STRING },
+      billingMode:  dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy,
+      // No TTL: version history is the point — it outlives the soft-deleted recipe.
     });
 
     // capture_failures: failureId (PK). Martin triages these to improve parsers.
@@ -90,6 +106,7 @@ export class DataStack extends cdk.Stack {
     });
 
     new cdk.CfnOutput(this, 'RecipesTableName', { value: this.recipesTable.tableName });
+    new cdk.CfnOutput(this, 'RecipeVersionsTableName', { value: this.recipeVersionsTable.tableName });
     new cdk.CfnOutput(this, 'FailuresTableName', { value: this.failuresTable.tableName });
     new cdk.CfnOutput(this, 'ModelsBucketName', { value: this.modelsBucket.bucketName });
     new cdk.CfnOutput(this, 'AvatarsBucketName', { value: this.avatarsBucket.bucketName });

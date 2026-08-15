@@ -21,6 +21,7 @@ import { embedImageTag } from './embed-image-tag';
 export interface ApiStackProps extends cdk.StackProps {
   deployEnv: 'sandbox' | 'prod';
   recipesTable: dynamodb.ITable;
+  recipeVersionsTable: dynamodb.ITable;
   failuresTable: dynamodb.ITable;
   shoppingTable: dynamodb.ITable;
   categoryCacheTable: dynamodb.ITable;
@@ -36,7 +37,7 @@ export class ApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
-    const { deployEnv, recipesTable, failuresTable, shoppingTable, categoryCacheTable, modelsBucket, avatarsBucket, certificate, zone, appDomain, webDomain } = props;
+    const { deployEnv, recipesTable, recipeVersionsTable, failuresTable, shoppingTable, categoryCacheTable, modelsBucket, avatarsBucket, certificate, zone, appDomain, webDomain } = props;
 
     // ── Shared Cognito user pool ──────────────────────────────────────────────
     const userPoolId = ssm.StringParameter.valueForStringParameter(
@@ -317,11 +318,23 @@ export class ApiStack extends cdk.Stack {
       entry: path.join(__dirname, '../lambda/recipes/update.ts'),
       handler: 'handler',
       runtime,
-      environment: commonEnv,
+      environment: {
+        ...commonEnv,
+        RECIPE_VERSIONS_TABLE: recipeVersionsTable.tableName,
+        GROUP_MEMBERS_PARAM: groupMembersParam.parameterName,
+        EMBED_FUNCTION_NAME: embedFn.functionName,
+      },
       bundling,
       logGroup: logGroupFor('UpdateFnLogs', `recipator-update-${deployEnv}`),
     });
-    recipesTable.grantWriteData(updateFn);
+    // Read as well as write: an edit reads the current recipe to snapshot it and to
+    // rebuild the markdown from the merged content (RECP-59).
+    recipesTable.grantReadWriteData(updateFn);
+    recipeVersionsTable.grantWriteData(updateFn);
+    // Household members may edit each other's recipes, so the handler checks the group.
+    groupMembersParam.grantRead(updateFn);
+    // Re-embed when an edit changes the text the vector is built from.
+    embedFn.grantInvoke(updateFn);
 
     // ── Lambda: DELETE /recipes/{id} ──────────────────────────────────────────
     const deleteFn = new nodejs.NodejsFunction(this, 'DeleteFn', {

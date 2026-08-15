@@ -15,7 +15,9 @@ which we don't want to publish. This overrides the global end-of-session bloggin
 - **Share Extension** — `com.apple.share-services`, receives URLs from Chrome/Safari share sheet
 - **API** — API Gateway HTTP API + Lambda (Node 22), Cognito JWT authoriser (native, no authorizer Lambda)
 - **Extraction** — schema.org/Recipe JSON-LD first; Claude Haiku (`claude-haiku-4-5-20251001`) fallback server-side via Amazon Bedrock (`eu.` inference profile; IAM, no API key)
-- **Storage** — DynamoDB `recipator-recipes-{env}` (userId PK, recipeId SK, TTL soft-delete)
+- **Storage** — DynamoDB `recipator-recipes-{env}` (userId PK, recipeId SK, TTL soft-delete);
+  `recipator-recipe-versions-{env}` (recipeId PK, changedAt SK) holds the pre-edit snapshot of
+  every content edit (RECP-59) — write-only for now, no UI reads it yet
 - **Auth** — Shared Cognito user pool (`/nakomis-infra/{env}/cognito/user-pool-id`); iOS PKCE flow
 - **Chrome extension** — planned
 
@@ -28,6 +30,7 @@ which we don't want to publish. This overrides the global end-of-session bloggin
 | POST | /extract | Fetch URL, extract recipe, save to DynamoDB; async-invokes embed-Lambda |
 | GET | /recipes | List user's recipes |
 | GET | /recipes/{id} | Get one recipe |
+| PATCH | /recipes/{id} | Edit title/url/ingredients/method/notes (versions the old copy, rebuilds markdown, re-embeds) or set imageUrl. `?userId=` to edit a household member's recipe |
 | DELETE | /recipes/{id} | Soft delete (TTL 6 months) |
 | POST | /failures | Report a capture failure |
 | GET | /model | Presigned download URL + manifest for the on-device embedding model |
@@ -53,7 +56,7 @@ which we don't want to publish. This overrides the global end-of-session bloggin
   `/model` URL on first launch, verifies sha256, compiles + warms up in the background
   (search disabled until ready). Publish a model with `infra/scripts/publish-model.sh`.
 - **On-device**: GRDB store synced from `/embeddings` in the background. Two indexes:
-  semantic (mxbai vectors, cosine) and **FTS5** keyword (title + ingredients + method).
+  semantic (mxbai vectors, cosine) and **FTS5** keyword (title + ingredients + method + notes).
   Query embedded on-device (`BertTokenizer` + `CoreMLEmbedder`, in `ios/Recipator/Search/`).
 - **Hybrid ranking**: keyword (FTS) hits first, then semantically-similar recipes. Keyword
   search works as soon as text syncs (no model needed); semantic joins once the model lands.
@@ -74,15 +77,30 @@ Recipator is distributed via **Unlisted App Distribution**: a permanent, non-exp
 App Store install reachable **only by direct link**, kept out of search/charts/categories.
 This is deliberate — it's a personal/family app, not a public release. (TestFlight was
 rejected because builds expire after 90 days; public listing because it must not be
-discoverable; ABM/ASM because the users are family, not a managed org.) Unlisted
-distribution requested via developer.apple.com/contact/request/unlisted-app on 2026-06-15.
+discoverable; ABM/ASM because the users are family, not a managed org.)
+
+**Live since 2026-08-06:** https://apps.apple.com/gb/app/recipator/id6780017315
+
+Unlisted distribution is now provisioned on the app record, so App Distribution Methods no
+longer offers a Public/Private choice at all — it just shows the unlisted URL. Availability is
+set to **all 175 countries**, which is deliberate: for an unlisted app, availability and
+discoverability are independent, so restricting territories buys no privacy and only risks
+breaking the link for anyone on a different storefront.
 
 **Do NOT make it public.** Concretely:
-- Keep App Store version on **manual release** (never "Automatically release").
-- The fastlane `submit` lane (`submit_for_review` + `automatic_release`) is for a *public*
-  release — **don't run it** for normal distribution. Day-to-day distribution is just the
-  `beta` lane (TestFlight) for testing; the unlisted public-link install is the family path.
-- Builds still go through normal App Review once; unlisted only changes discoverability.
+- Never re-list it or otherwise undo the unlisted distribution method.
+- Builds go through normal App Review; unlisted only changes discoverability, not scrutiny.
+
+The fastlane `submit` lane (`submit_for_review` + `automatic_release`) is **fine to run** now
+that the app is unlisted — `automatic_release` controls *when* an approved build goes live, not
+*who can find it*. (An earlier version of this file said not to run it. That was correct only
+while unlisted was still pending and Public was the sole available setting.)
+
+Getting here took four rejections over seven weeks, all on Guideline 3.2, and none of them
+about the app itself. If anything similar recurs, see the `appstore-32-rejection-unlisted`
+memory — the short version is that emailing `unlisted_app_requests@apple.com` only ever
+produced templates, while an **App Store Connect Contact Us case** carrying a reproduction path
+and explicit eliminations got it fixed in about two hours.
 
 ## Project generation
 
