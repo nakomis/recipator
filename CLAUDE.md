@@ -118,9 +118,9 @@ cd ios && xcodegen generate   # regenerates Recipator.xcodeproj
 - Sandbox: `AWS_PROFILE=nakom.is-sandbox` (account `975050268859`)
 - Production: `AWS_PROFILE=nakom.is-admin` (account `637423226886`)
 
-## Taiga
+## Plane
 
-Project prefix: **RECP** — tracked at `https://taiga.home.nakomis.com`.
+Project identifier: **RECIP** (was RECP in Taiga; numbers unchanged) — tracked at `https://plane.home.nakomis.com`.
 
 ## Architecture diagrams
 
