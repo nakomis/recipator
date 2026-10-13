@@ -1,6 +1,8 @@
 """Async embed-Lambda: compute a recipe's bge-base vector and store it on the item.
 
-Invoked (InvocationType=Event) by /extract after a recipe is saved. The vector is
+Invoked (InvocationType=Event) by /extract after a recipe is saved, by PATCH
+/recipes/{id} when the title or ingredients change, and by backfill/redrive scripts.
+Failures are retried by Lambda, then land in the on-failure DLQ (RECIP-33). The vector is
 the SAME space the on-device CoreML model produces (verified cosine 1.0000), so
 the document embedding uses NO query prefix and is L2-normalised.
 
@@ -57,24 +59,34 @@ def _load_item(user_id: str, recipe_id: str):
     return title, ingredients
 
 
-def handler(event, _context):
+def handler(event, context):
     # Accept either a direct payload or an SQS/event envelope.
     recipe = event if "recipeId" in event else json.loads(event.get("body", "{}"))
-    recipe_id = recipe["recipeId"]
-    user_id = recipe["userId"]
+    recipe_id = recipe.get("recipeId")
+    user_id = recipe.get("userId")
+    # Which caller sent this: extract | update | backfill | redrive. Older callers omit it.
+    source = recipe.get("source", "unknown")
+    request_id = getattr(context, "aws_request_id", None)
 
-    # /extract passes title + ingredients inline; the backfill sends keys only, so
-    # fall back to reading them from the item.
-    title = recipe.get("title")
-    ingredients = recipe.get("ingredients")
-    backfilled = title is None or ingredients is None
-    if backfilled:
-        title, ingredients = _load_item(user_id, recipe_id)
-
-    _log("INFO", "embed:start", recipeId=recipe_id, userId=user_id,
-         backfilled=backfilled, ingredients=len(ingredients or []))
-
+    # Everything that can fail sits inside the try, so every failure — a malformed
+    # payload, the backfill item read, the encode or the write — logs the same
+    # embed:failed line with enough to replay it. Re-raising lets Lambda's async retry
+    # run and, once spent, hand the event to the on-failure DLQ (RECIP-33).
     try:
+        if not recipe_id or not user_id:
+            raise ValueError(f"payload missing recipeId/userId (keys: {sorted(recipe)})")
+
+        # /extract and PATCH pass title + ingredients inline; the backfill and redrive
+        # send keys only, so fall back to reading them from the item.
+        title = recipe.get("title")
+        ingredients = recipe.get("ingredients")
+        backfilled = title is None or ingredients is None
+        if backfilled:
+            title, ingredients = _load_item(user_id, recipe_id)
+
+        _log("INFO", "embed:start", recipeId=recipe_id, userId=user_id, source=source,
+             requestId=request_id, backfilled=backfilled, ingredients=len(ingredients or []))
+
         text = _field_text(title, ingredients)
         vec = _model.encode(text, normalize_embeddings=True)
         blob = b"".join(struct.pack("<f", float(x)) for x in vec)
@@ -90,8 +102,12 @@ def handler(event, _context):
             },
         )
     except Exception as e:
-        _log("ERROR", "embed:failed", recipeId=recipe_id, userId=user_id, error=str(e))
+        _log("ERROR", "embed:failed", recipeId=recipe_id, userId=user_id, source=source,
+             requestId=request_id, errorType=type(e).__name__, error=str(e),
+             # Keys-only payload: invoking the Lambda with this re-embeds from the table.
+             replay={"recipeId": recipe_id, "userId": user_id, "source": "redrive"})
         raise
 
-    _log("INFO", "embed:done", recipeId=recipe_id, userId=user_id, dim=len(vec), model=MODEL_TAG)
+    _log("INFO", "embed:done", recipeId=recipe_id, userId=user_id, source=source,
+         dim=len(vec), model=MODEL_TAG)
     return {"recipeId": recipe_id, "dim": len(vec), "model": MODEL_TAG}

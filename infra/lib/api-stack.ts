@@ -7,8 +7,13 @@ import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as lambdaDestinations from 'aws-cdk-lib/aws-lambda-destinations';
 import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as cloudwatchActions from 'aws-cdk-lib/aws-cloudwatch-actions';
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as route53 from 'aws-cdk-lib/aws-route53';
@@ -258,6 +263,69 @@ export class ApiStack extends cdk.Stack {
     // Read + write: writes the embedding, and reads title/ingredients when invoked with
     // keys only (the backfill path; /extract passes them in the payload).
     recipesTable.grantReadWriteData(embedFn);
+
+    // ── Embed failures: DLQ + alarm (RECIP-33) ────────────────────────────────
+    // Every caller (/extract, PATCH /recipes/{id}, backfill-embeddings.sh) invokes the
+    // embed Lambda asynchronously (InvocationType=Event) — there is no event source queue.
+    // So the unhappy path is Lambda's own async retry, then an on-failure destination:
+    // after the retries are spent, or if the event is older than maxEventAge, Lambda sends
+    // an invocation record (original payload + error) to this queue instead of dropping it.
+    // The record carries recipeId/userId/source, which is all a redrive needs — see
+    // docs/embed-dlq.md and scripts/redrive-embed-dlq.sh.
+    const embedDlq = new sqs.Queue(this, 'EmbedDlq', {
+      queueName: `recipator-embed-dlq-${deployEnv}`,
+      retentionPeriod: cdk.Duration.days(14),
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      enforceSSL: true,
+    });
+    embedFn.configureAsyncInvoke({
+      onFailure: new lambdaDestinations.SqsDestination(embedDlq),
+      // The Lambda default, stated explicitly: two retries cover a cold-start timeout or a
+      // DynamoDB throttle; anything still failing after that wants a human.
+      retryAttempts: 2,
+      maxEventAge: cdk.Duration.hours(6),
+    });
+
+    // Alerts topic — there was none in this stack before. The email subscription is a
+    // stack parameter rather than a literal so no address is committed. CDK reuses the
+    // previous value on later deploys, so it only needs supplying once:
+    //   cdk deploy RecipatorApiStack --parameters RecipatorApiStack:AlertEmail=<address>
+    // Left empty (the default), the topic and alarm still deploy, just with no subscriber.
+    const alertEmail = new cdk.CfnParameter(this, 'AlertEmail', {
+      type: 'String',
+      default: '',
+      description: 'Email address subscribed to Recipator alerts (blank for none)',
+    });
+    const alertsTopic = new sns.Topic(this, 'AlertsTopic', {
+      topicName: `recipator-alerts-${deployEnv}`,
+      displayName: `Recipator alerts (${deployEnv})`,
+    });
+    const hasAlertEmail = new cdk.CfnCondition(this, 'HasAlertEmail', {
+      expression: cdk.Fn.conditionNot(cdk.Fn.conditionEquals(alertEmail.valueAsString, '')),
+    });
+    const alertEmailSub = new sns.CfnSubscription(this, 'AlertsEmailSubscription', {
+      topicArn: alertsTopic.topicArn,
+      protocol: 'email',
+      endpoint: alertEmail.valueAsString,
+    });
+    alertEmailSub.cfnOptions.condition = hasAlertEmail;
+
+    // Any message in the DLQ is a recipe that is not semantically searchable, so alarm on
+    // the first one. Missing data (an idle queue publishes nothing) is not breaching.
+    const embedDlqAlarm = new cloudwatch.Alarm(this, 'EmbedDlqAlarm', {
+      alarmName: `recipator-embed-dlq-not-empty-${deployEnv}`,
+      alarmDescription: 'Embed Lambda failures are waiting in the DLQ. See docs/embed-dlq.md to inspect and redrive.',
+      metric: embedDlq.metricApproximateNumberOfMessagesVisible({
+        period: cdk.Duration.minutes(5),
+        statistic: cloudwatch.Stats.MAXIMUM,
+      }),
+      threshold: 0,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      evaluationPeriods: 1,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    embedDlqAlarm.addAlarmAction(new cloudwatchActions.SnsAction(alertsTopic));
+    embedDlqAlarm.addOkAction(new cloudwatchActions.SnsAction(alertsTopic));
 
     // ── Lambda: POST /extract ─────────────────────────────────────────────────
     const extractFn = new nodejs.NodejsFunction(this, 'ExtractFn', {
