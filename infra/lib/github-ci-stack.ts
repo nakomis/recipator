@@ -29,6 +29,11 @@ export class GithubCiStack extends cdk.Stack {
           StringEquals: {
             'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
           },
+          // One wildcard covers every subject CI presents, as in blog-pipeline: the
+          // environment-scoped deploy jobs (repo:…:environment:sandbox|production),
+          // pull-request runs (repo:…:pull_request) and branch pushes
+          // (repo:…:ref:refs/heads/main). Narrowing it to main + pull_request alone
+          // would lock out the deploy jobs, which run under an environment.
           StringLike: {
             'token.actions.githubusercontent.com:sub': 'repo:nakomis/recipator:*',
           },
