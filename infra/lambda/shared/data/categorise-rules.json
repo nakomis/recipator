@@ -10,52 +10,117 @@
     "broccoli", "cauliflower", "cabbage", "courgette", "aubergine", "celery", "leek",
     "leeks", "sweetcorn", "peas", "green beans", "asparagus", "beetroot", "squash",
     "parsnip", "parsnips", "herbs", "coriander", "parsley", "basil", "mint", "thyme",
-    "rosemary"
+    "rosemary",
+    "clementine", "clementines", "satsuma", "satsumas", "tangerine", "tangerines",
+    "nectarine", "nectarines", "peaches", "plums", "apricot", "apricots", "cherries",
+    "blackberries", "redcurrants", "gooseberries", "rhubarb", "figs", "pomegranate",
+    "grapefruit", "watermelon", "papaya", "passion fruit", "kiwi fruit", "lychees",
+    "plantain", "okra", "baby potatoes", "new potatoes", "jersey royals", "maris piper",
+    "baking potatoes", "sweet potatoes", "butternut squash", "swede", "turnip", "celeriac",
+    "fennel", "radish", "radishes", "red onions", "spring onions", "shallot", "shallots",
+    "red pepper", "red peppers", "green pepper", "yellow pepper", "bell pepper", "jalapeno",
+    "jalapenos", "courgettes", "aubergines", "mangetout", "sugar snap peas", "runner beans",
+    "broad beans", "pak choi", "bok choy", "spring greens", "savoy cabbage", "red cabbage",
+    "brussels sprouts", "sprouts", "watercress", "iceberg lettuce", "little gem", "romaine",
+    "mixed salad", "salad leaves", "baby spinach", "cherry tomatoes", "vine tomatoes",
+    "chestnut mushrooms", "bean sprouts", "beansprouts", "corn on the cob", "garlic cloves",
+    "garlic clove", "red chilli", "green chilli", "dill", "chives", "sage", "tarragon",
+    "lemongrass", "fresh coriander", "fresh basil", "fresh parsley", "fresh mint",
+    "fresh oregano"
   ],
   "bakery": [
     "bread", "loaf", "bread roll", "rolls", "baguette", "bagel", "bagels", "croissant",
     "croissants", "crumpets", "pitta", "naan", "tortilla", "tortillas", "wrap", "wraps",
-    "muffin", "muffins", "doughnut", "cake", "pastry", "brioche", "sourdough", "ciabatta"
+    "muffin", "muffins", "doughnut", "cake", "pastry", "brioche", "sourdough", "ciabatta",
+    "bread rolls", "burger buns", "hot dog rolls", "buns", "teacakes", "hot cross buns",
+    "english muffins", "scones", "pancakes", "crumpet", "malt loaf", "flatbread",
+    "flatbreads", "pittas", "pitta bread", "focaccia", "rye bread", "soda bread", "baps",
+    "finger rolls", "panini", "brownies", "doughnuts", "cupcakes", "fruit loaf",
+    "tortilla wraps", "danish pastry", "pain au chocolat"
   ],
   "meat-fish": [
     "chicken", "chicken breast", "chicken thighs", "beef", "mince", "beef mince", "steak",
     "pork", "lamb", "sausages", "sausage", "bacon", "ham", "turkey", "gammon", "ribs",
     "salmon", "tuna steak", "cod", "haddock", "prawns", "fish", "sea bass", "mackerel",
-    "fish fingers", "chorizo", "pepperoni"
+    "fish fingers", "chorizo", "pepperoni",
+    "chicken thigh", "chicken wings", "chicken drumsticks", "whole chicken", "chicken legs",
+    "diced chicken", "turkey mince", "pork mince", "lamb mince", "pork chops", "pork belly",
+    "pork loin", "pork shoulder", "lamb chops", "lamb shank", "leg of lamb", "rump steak",
+    "sirloin steak", "fillet steak", "braising steak", "stewing steak", "diced beef",
+    "brisket", "beef joint", "roasting joint", "meatballs", "burgers", "beef burgers",
+    "streaky bacon", "back bacon", "lardons", "pancetta", "cumberland sausages",
+    "chipolatas", "duck", "duck breast", "venison", "black pudding", "haggis", "trout",
+    "sea bream", "hake", "pollock", "plaice", "king prawns", "tiger prawns", "mussels",
+    "scallops", "squid", "crab", "lobster", "kippers", "smoked haddock", "salmon fillets",
+    "cod fillets", "white fish"
   ],
   "dairy-eggs": [
     "milk", "semi skimmed milk", "whole milk", "skimmed milk", "oat milk", "almond milk",
     "soya milk", "cheese", "cheddar", "mozzarella", "parmesan", "feta", "brie",
     "cream cheese", "butter", "margarine", "cream", "single cream", "double cream",
     "soured cream", "clotted cream", "creme fraiche", "yoghurt", "yogurt", "greek yoghurt",
-    "eggs", "egg", "custard"
+    "eggs", "egg", "custard",
+    "lactose free milk", "buttermilk", "salted butter", "unsalted butter",
+    "spreadable butter", "red leicester", "double gloucester", "stilton", "halloumi",
+    "ricotta", "mascarpone", "goats cheese", "grated cheese", "cottage cheese", "paneer",
+    "gruyere", "camembert", "wensleydale", "edam", "gouda", "emmental", "pecorino",
+    "manchego", "whipping cream", "squirty cream", "natural yoghurt", "fromage frais",
+    "kefir", "quark", "skyr"
   ],
   "chilled": [
     "hummus", "houmous", "dip", "dips", "coleslaw", "olives", "pate", "quiche",
     "fresh pasta", "gnocchi", "tofu", "deli meat", "smoked salmon", "fresh soup",
-    "ready meal", "ready meals"
+    "ready meal", "ready meals",
+    "taramasalata", "tzatziki", "guacamole", "falafel", "tempeh", "quorn", "quorn mince",
+    "sausage rolls", "pork pie", "pork pies", "scotch eggs", "potato salad", "pasta salad",
+    "salami", "prosciutto", "parma ham", "cooked ham", "cooked chicken", "puff pastry",
+    "shortcrust pastry", "filo pastry", "garlic bread", "fresh pizza"
   ],
   "frozen": [
     "ice cream", "frozen peas", "frozen chips", "chips", "frozen pizza", "pizza",
     "frozen veg", "frozen vegetables", "ice", "lolly", "lollies", "frozen fruit",
-    "frozen berries", "waffles", "frozen fish"
+    "frozen berries", "waffles", "frozen fish",
+    "onion rings", "hash browns", "oven chips", "potato wedges", "frozen spinach",
+    "frozen sweetcorn", "frozen prawns", "yorkshire puddings", "garden peas", "petits pois",
+    "ice cubes", "ice lollies", "sorbet", "frozen yoghurt", "chicken nuggets",
+    "chicken kiev", "chicken kievs", "veggie burgers", "spring rolls"
   ],
   "cupboard": [
     "tinned tomatoes", "chopped tomatoes", "tomato puree", "passata", "baked beans",
     "beans", "kidney beans", "butter beans", "chickpeas", "lentils", "tinned",
     "tuna", "sweetcorn tin", "coconut milk", "stock", "stock cubes", "soup", "gravy",
-    "tinned fruit"
+    "tinned fruit",
+    "tinned plum tomatoes", "black beans", "cannellini beans", "borlotti beans",
+    "pinto beans", "haricot beans", "red lentils", "green lentils", "puy lentils",
+    "tinned tuna", "tuna chunks", "sardines", "anchovies", "tinned mackerel", "spam",
+    "corned beef", "tinned soup", "tomato soup", "chicken soup", "mushroom soup",
+    "vegetable soup", "spaghetti hoops", "mushy peas", "tinned sweetcorn", "tinned peaches",
+    "tinned pineapple", "coconut cream", "rice pudding", "gravy granules", "oxo",
+    "bouillon", "chicken stock", "beef stock", "vegetable stock", "fish stock",
+    "pickled onions", "gherkins", "pickled beetroot", "capers", "sun dried tomatoes",
+    "roasted red peppers", "artichoke hearts", "breadcrumbs", "stuffing",
+    "sage and onion stuffing"
   ],
   "pasta-rice-grains": [
     "pasta", "spaghetti", "penne", "fusilli", "macaroni", "lasagne", "rice", "basmati",
     "basmati rice", "risotto rice", "noodles", "couscous", "quinoa", "oats", "porridge",
-    "cereal", "cornflakes", "granola", "muesli", "bulgur"
+    "cereal", "cornflakes", "granola", "muesli", "bulgur",
+    "linguine", "tagliatelle", "rigatoni", "farfalle", "orzo", "conchiglie",
+    "lasagne sheets", "egg noodles", "long grain rice", "brown rice", "jasmine rice",
+    "arborio rice", "wild rice", "microwave rice", "pilau rice", "paella rice",
+    "pearl barley", "polenta", "semolina", "buckwheat", "bulgur wheat", "porridge oats",
+    "rolled oats", "weetabix", "shreddies", "rice krispies", "bran flakes", "pasta shells"
   ],
   "baking": [
     "flour", "plain flour", "self raising flour", "bread flour", "sugar", "caster sugar",
     "icing sugar", "brown sugar", "baking powder", "bicarbonate of soda", "yeast",
     "vanilla", "vanilla extract", "cocoa", "chocolate chips", "baking", "cake mix",
-    "icing", "sprinkles"
+    "icing", "sprinkles",
+    "cornflour", "condensed milk", "evaporated milk", "dried fruit", "raisins", "sultanas",
+    "currants", "dried apricots", "glace cherries", "ground almonds", "flaked almonds",
+    "desiccated coconut", "golden syrup", "treacle", "black treacle", "food colouring",
+    "gelatine", "marzipan", "cooking chocolate", "cocoa powder", "almond extract",
+    "vanilla pod", "suet", "baking soda", "muscovado sugar", "demerara sugar"
   ],
   "condiments": [
     "ketchup", "mayonnaise", "mayo", "mustard", "brown sauce", "salad cream",
@@ -66,39 +131,98 @@
     "ground coriander", "garam masala", "mixed herbs", "dried herbs", "seasoning",
     "honey", "jam", "marmalade", "peanut butter",
     "nutella", "chocolate spread", "pesto", "pasta sauce", "curry sauce", "tahini",
-    "sriracha", "hot sauce", "worcestershire sauce", "stock pot"
+    "sriracha", "hot sauce", "worcestershire sauce", "stock pot",
+    "black pepper", "ground black pepper", "white pepper", "peppercorns", "sea salt",
+    "smoked paprika", "chilli flakes", "cayenne pepper", "mixed spice", "nutmeg",
+    "ground cloves", "whole cloves", "cardamom", "fennel seeds", "cumin seeds",
+    "coriander seeds", "mustard seeds", "bay leaves", "dried oregano", "dried basil",
+    "dried thyme", "dried parsley", "dried rosemary", "chinese five spice",
+    "salad dressing", "french dressing", "caesar dressing", "dressing", "bbq sauce",
+    "barbecue sauce", "sweet chilli sauce", "tartare sauce", "horseradish",
+    "horseradish sauce", "mint sauce", "apple sauce", "cranberry sauce", "bread sauce",
+    "white wine vinegar", "red wine vinegar", "cider vinegar", "malt vinegar",
+    "balsamic vinegar", "sherry vinegar", "rapeseed oil", "extra virgin olive oil",
+    "coconut oil", "lemon juice", "lime juice", "lemon curd", "maple syrup", "chutney",
+    "piccalilli", "relish", "branston pickle", "pickle", "tomato ketchup", "tomato sauce",
+    "english mustard", "dijon mustard", "wholegrain mustard", "marmite", "bovril",
+    "garlic salt", "celery salt", "salt and pepper"
   ],
   "snacks": [
     "crisps", "chocolate", "chocolate bar", "biscuits", "cookies", "sweets", "haribo",
     "nuts", "peanuts", "cashews", "popcorn", "crackers", "cereal bars", "flapjack",
-    "chewing gum", "mints"
+    "chewing gum", "mints",
+    "milk chocolate", "chocolate biscuits", "digestives", "digestive biscuits", "rich tea",
+    "hobnobs", "jaffa cakes", "custard creams", "bourbon biscuits", "shortbread",
+    "oatcakes", "rice cakes", "breadsticks", "pretzels", "kettle chips", "pringles",
+    "almonds", "walnuts", "pecans", "hazelnuts", "pistachios", "mixed nuts", "trail mix",
+    "jelly babies", "jelly beans", "wine gums", "fruit pastilles", "liquorice",
+    "marshmallows", "fudge", "toffee", "lollipop", "chocolate buttons", "protein bars",
+    "granola bars", "pork scratchings", "cream crackers"
   ],
   "drinks": [
     "water", "sparkling water", "juice", "orange juice", "apple juice", "squash",
     "cordial", "coke", "cola", "lemonade", "fizzy drink", "tea", "tea bags", "coffee",
     "hot chocolate", "beer", "lager", "wine", "red wine", "white wine", "prosecco",
-    "gin", "vodka", "whisky", "tonic", "energy drink"
+    "gin", "vodka", "whisky", "tonic", "energy drink",
+    "still water", "mineral water", "fizzy water", "orange squash", "blackcurrant squash",
+    "ribena", "smoothie", "smoothies", "cranberry juice", "pineapple juice", "tomato juice",
+    "diet coke", "coke zero", "pepsi", "ginger beer", "ginger ale", "tonic water",
+    "soda water", "elderflower cordial", "irn bru", "lucozade", "iced tea", "green tea",
+    "herbal tea", "peppermint tea", "earl grey", "decaf tea", "instant coffee",
+    "ground coffee", "coffee beans", "coffee pods", "decaf coffee", "rum", "brandy",
+    "cider", "ale", "stout", "champagne", "sherry", "milkshake", "kombucha",
+    "coconut water", "sparkling wine", "alcohol free beer", "drinking chocolate"
   ],
   "world-foods": [
     "curry paste", "thai curry paste", "rice noodles", "miso", "fish sauce", "mirin",
     "sushi", "taco", "taco shells", "salsa", "tortilla chips", "poppadoms", "naan bread",
-    "sesame oil", "oyster sauce", "hoisin", "sushi rice"
+    "sesame oil", "oyster sauce", "hoisin", "sushi rice",
+    "tikka masala paste", "korma paste", "tikka paste", "red curry paste",
+    "green curry paste", "udon noodles", "soba noodles", "ramen", "chipotle paste",
+    "harissa", "fajita kit", "fajita seasoning", "enchilada sauce", "refried beans",
+    "nachos", "mango chutney", "lime pickle", "chapati", "chapatis", "ghee", "rice vinegar",
+    "rice wine", "black bean sauce", "sweet and sour sauce", "teriyaki sauce", "plum sauce",
+    "hoisin sauce", "panko", "panko breadcrumbs", "wasabi", "pickled ginger", "nori",
+    "rice paper", "tamarind"
   ],
   "health-beauty": [
     "shampoo", "conditioner", "shower gel", "soap", "toothpaste", "toothbrush",
     "deodorant", "razors", "shaving foam", "moisturiser", "sun cream", "plasters",
     "paracetamol", "ibuprofen", "vitamins", "cotton wool", "tampons", "sanitary pads",
-    "tissues", "face wash", "hand cream"
+    "tissues", "face wash", "hand cream",
+    "mouthwash", "dental floss", "floss", "toothbrushes", "body wash", "bubble bath",
+    "hand wash", "shaving gel", "razor blades", "razor", "lip balm", "hair gel",
+    "hairspray", "hair dye", "dry shampoo", "cotton buds", "cotton pads", "make up remover",
+    "face cream", "body lotion", "suncream", "sunscreen", "after sun", "antiperspirant",
+    "panty liners", "sanitary towels", "contact lens solution", "cough sweets",
+    "cough syrup", "cough medicine", "antihistamines", "hay fever tablets",
+    "indigestion tablets", "antiseptic cream", "condoms", "pregnancy test",
+    "hand sanitiser", "nail polish", "nail varnish remover", "multivitamins", "vitamin c",
+    "wet wipes", "talc", "shower cream"
   ],
   "household": [
     "washing up liquid", "fairy liquid", "dishwasher tablets", "washing powder",
     "laundry detergent", "fabric softener", "bleach", "cleaning spray",
     "surface spray", "kitchen roll", "toilet roll", "loo roll", "bin bags", "bin liners",
     "cling film", "foil", "tin foil", "baking paper", "sponges", "washing up sponge",
-    "batteries", "light bulb", "matches", "candles", "air freshener", "disinfectant"
+    "batteries", "light bulb", "matches", "candles", "air freshener", "disinfectant",
+    "dishwasher salt", "rinse aid", "laundry pods", "washing capsules", "laundry capsules",
+    "washing liquid", "non bio", "stain remover", "fabric conditioner", "toilet cleaner",
+    "bathroom cleaner", "kitchen cleaner", "glass cleaner", "oven cleaner",
+    "multi surface cleaner", "antibacterial wipes", "cleaning wipes", "antibacterial spray",
+    "limescale remover", "drain unblocker", "descaler", "rubber gloves", "scourers",
+    "dishcloths", "microfibre cloths", "mop", "j cloths", "kitchen towel", "kitchen towels",
+    "paper towels", "freezer bags", "sandwich bags", "food bags", "greaseproof paper",
+    "baking parchment", "napkins", "paper plates", "kitchen foil", "aluminium foil",
+    "caddy liners", "light bulbs", "tealights", "tea lights", "firelighters", "charcoal",
+    "fly spray", "toilet paper", "toilet rolls", "kitchen rolls", "tea towels",
+    "coffee filters", "cling wrap", "washing up brush", "furniture polish"
   ],
   "baby-pet": [
     "nappies", "baby wipes", "baby food", "formula", "cat food", "dog food", "cat litter",
-    "cat treats", "dog treats", "pet food"
+    "cat treats", "dog treats", "pet food",
+    "baby milk", "baby formula", "nappy bags", "baby shampoo", "baby lotion",
+    "teething gel", "dog biscuits", "puppy food", "kitten food", "bird seed", "bird food",
+    "fish food", "poo bags", "dog poo bags", "dog chews", "rabbit food"
   ]
 }
