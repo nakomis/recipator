@@ -119,6 +119,7 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
         InvocationType: InvocationType.Event,
         Payload: Buffer.from(JSON.stringify({
           recipeId, userId, title: extracted.title, ingredients: extracted.ingredients,
+          source: 'extract',
         })),
       }));
     } catch (e) {

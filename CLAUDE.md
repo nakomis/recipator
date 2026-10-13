@@ -52,6 +52,10 @@ which we don't want to publish. This overrides the global end-of-session bloggin
   push is idempotent: same `Dockerfile`/`requirements.txt`/`handler.py` → same tag → skipped.
   `pnpm run deploy-{env}` runs the publish step first, so a code change rebuilds and any redeploy
   is a no-op push. The tag is derived identically in bash and in `infra/lib/embed-image-tag.ts`.
+- **Failures (RECIP-33)**: the embed Lambda is async-invoked only. After 2 retries, failed events
+  go to an on-failure destination SQS DLQ `recipator-embed-dlq-{env}` (14 days), alarmed to SNS
+  `recipator-alerts-{env}` (email via the `AlertEmail` stack parameter). To inspect and redrive,
+  see `docs/embed-dlq.md` / `infra/scripts/redrive-embed-dlq.sh`.
 - **Model delivery**: private S3 bucket `recipator-models-{env}`; app downloads via presigned
   `/model` URL on first launch, verifies sha256, compiles + warms up in the background
   (search disabled until ready). Publish a model with `infra/scripts/publish-model.sh`.

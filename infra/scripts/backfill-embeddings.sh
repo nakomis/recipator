@@ -88,7 +88,7 @@ while IFS= read -r item; do
   fi
   printf '  [%d/%d] embedding %s — %s\n' "$N" "$COUNT" "$RID" "$TITLE"
   # Keys only — the embed-Lambda reads title/ingredients from the item when they're absent.
-  PAYLOAD="$(jq -nc --arg r "$RID" --arg u "$USER_ID" '{recipeId:$r, userId:$u}')"
+  PAYLOAD="$(jq -nc --arg r "$RID" --arg u "$USER_ID" '{recipeId:$r, userId:$u, source:"backfill"}')"
   aws lambda invoke --region "$REGION" --function-name "$FUNCTION" \
     --invocation-type Event \
     --cli-binary-format raw-in-base64-out \
