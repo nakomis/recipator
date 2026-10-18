@@ -1,6 +1,6 @@
 import type { ShoppingItem } from '../lambda/shopping/store';
 import { parseQuantity } from '../lambda/shared/quantity';
-import { ListOpsDeps, createListOps, matchKey, spokenKey } from '../lambda/alexa/list-ops';
+import { ListOpsDeps, createListOps } from '../lambda/alexa/list-ops';
 
 let nextId = 0;
 
@@ -47,34 +47,12 @@ function fakeList(initial: ShoppingItem[]) {
   return { items, calls, deps, ops: createListOps(deps) };
 }
 
-describe('matching keys', () => {
-  it('ignores case and extra whitespace', () => {
-    expect(matchKey('  Double   Cream ')).toBe(matchKey('double cream'));
-  });
-
-  it('treats singular and plural as the same', () => {
-    expect(matchKey('egg')).toBe(matchKey('eggs'));
-    expect(matchKey('tomato')).toBe(matchKey('tomatoes'));
-    expect(matchKey('loaf of bread')).toBe(matchKey('loaves of bread'));
-  });
-
-  it('strips a spoken quantity', () => {
-    expect(spokenKey('two pints of milk')).not.toBe(matchKey('milk')); // words aren't amounts
-    expect(spokenKey('2 pints of milk')).toBe(matchKey('milk'));
-    expect(spokenKey('6 eggs')).toBe(matchKey('egg'));
-  });
-
-  it('does not fuzzy-match', () => {
-    expect(matchKey('milk')).not.toBe(matchKey('oat milk'));
-  });
-});
-
 describe('add', () => {
   it('adds an item that is not on the list', async () => {
     const { ops, calls } = fakeList([stored('milk')]);
     const result = await ops.add('2 courgettes');
     expect(result.outcome).toBe('added');
-    expect(result.item.item).toBe('courgettes');
+    expect(result.item?.item).toBe('courgettes');
     expect(calls.addItem).toEqual(['2 courgettes']);
     expect(calls.setChecked).toEqual([]);
   });
@@ -107,12 +85,32 @@ describe('add', () => {
     expect(calls.setChecked).toEqual([]);
   });
 
-  it('unticks the earliest-added of several ticked matches', async () => {
-    const later = stored('lemon', { checked: true, sortOrder: 50 });
-    const earlier = stored('lemons', { checked: true, sortOrder: 10 });
-    const { ops, calls } = fakeList([later, earlier]);
+  it('unticks the most recently updated of several ticked matches', async () => {
+    const older = stored('lemon', { checked: true, updatedAt: '2026-10-01T00:00:00.000Z' });
+    const newer = stored('lemons', { checked: true, updatedAt: '2026-10-10T00:00:00.000Z' });
+    const { ops, calls } = fakeList([older, newer]);
     await ops.add('lemon');
-    expect(calls.setChecked).toEqual([[earlier.itemId, false]]);
+    expect(calls.setChecked).toEqual([[newer.itemId, false]]);
+  });
+
+  it('treats a spoken number word as a quantity, not a duplicate', async () => {
+    const milk = stored('milk');
+    const { ops, calls } = fakeList([milk]);
+    expect(await ops.add('two pints of milk')).toEqual({ outcome: 'already', item: milk });
+    expect(await ops.add('a pint of milk')).toEqual({ outcome: 'already', item: milk });
+    expect(calls.addItem).toEqual([]);
+  });
+
+  it('matches singular and plural', async () => {
+    const eggs = stored('eggs');
+    const { ops } = fakeList([eggs]);
+    expect((await ops.add('egg')).outcome).toBe('already');
+  });
+
+  it('does not fuzzy-match', async () => {
+    const { ops, calls } = fakeList([stored('milk')]);
+    expect((await ops.add('oat milk')).outcome).toBe('added');
+    expect(calls.addItem).toEqual(['oat milk']);
   });
 
   it('adds afresh if the ticked item vanished before it could be unticked', async () => {
@@ -124,9 +122,10 @@ describe('add', () => {
     expect(list.calls.addItem).toEqual(['bread']);
   });
 
-  it('rejects text with no item in it', async () => {
+  it('returns empty, writing nothing, for text with no item in it', async () => {
     const { ops, calls } = fakeList([]);
-    await expect(ops.add('   ')).rejects.toThrow('Nothing to add');
+    expect(await ops.add('   ')).toEqual({ outcome: 'empty' });
+    expect(calls.setChecked).toEqual([]);
     expect(calls.addItem).toEqual([]);
   });
 });
@@ -143,6 +142,12 @@ describe('check', () => {
     const { ops } = fakeList([eggs]);
     expect(await ops.check('an egg')).toEqual({ status: 'absent' }); // "an egg" isn't "egg"
     expect(await ops.check('egg')).toEqual({ status: 'ticked', item: eggs });
+  });
+
+  it('finds an item despite a spoken quantity', async () => {
+    const milk = stored('milk');
+    const { ops } = fakeList([milk]);
+    expect(await ops.check('two pints of milk')).toEqual({ status: 'on', item: milk });
   });
 
   it('prefers on over ticked when both exist', async () => {

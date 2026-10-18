@@ -7,14 +7,13 @@
 // erased at compile time), and it produces no speech — the handler hands the results to
 // the builders in ../shared/speech.
 //
-// Matching a spoken item to a stored one: the spoken text goes through parseQuantity to drop
-// any quantity ("two pints of milk" → "milk"), then both sides are lower-cased, whitespace is
-// collapsed and the label is pluralised with pluraliseItem, so "egg" and "eggs" match.
-// There is no fuzzy matching.
+// Matching a spoken item to a stored one is delegated to findSameItem / itemKey (RECIP-62),
+// the single matcher for both add and check: spoken number words become digits, the quantity
+// is dropped, case and punctuation are ignored and the last word is lightly singularised, so
+// "two pints of milk" finds "milk" and "egg" finds "eggs". There is no fuzzy matching.
 
 import { aisleOrder } from '../shared/aisles';
-import { parseQuantity } from '../shared/quantity';
-import { pluraliseItem } from '../shared/speech';
+import { findSameItem, itemKey } from '../shopping/item-key';
 import type { ShoppingItem } from '../shopping/store';
 
 /** Storage for one list, with userId and listId already bound by the caller. */
@@ -27,11 +26,12 @@ export interface ListOpsDeps {
   setChecked(itemId: string, checked: boolean): Promise<ShoppingItem | null>;
 }
 
-export type AddOutcome = 'added' | 'unticked' | 'already';
+export type AddOutcome = 'added' | 'unticked' | 'already' | 'empty';
 
 export interface AddResult {
   outcome: AddOutcome;
-  item: ShoppingItem;
+  /** The item added, unticked or found; absent when outcome is 'empty'. */
+  item?: ShoppingItem;
 }
 
 export type CheckStatus = 'on' | 'ticked' | 'absent';
@@ -48,45 +48,26 @@ export interface ListOps {
   read(): Promise<ShoppingItem[]>;
 }
 
-/** The comparison key for an item label: lower-cased, whitespace collapsed, pluralised. */
-export function matchKey(label: string): string {
-  const tidy = label.replace(/\s+/g, ' ').trim().toLowerCase();
-  return tidy ? pluraliseItem(tidy) : '';
-}
-
-/** The comparison key for spoken text, with any quantity stripped first. */
-export function spokenKey(text: string): string {
-  return matchKey(parseQuantity(text).itemText);
-}
-
 /** Aisle order, then the order items were added. */
 function byAisleThenSortOrder(a: ShoppingItem, b: ShoppingItem): number {
   return aisleOrder(a.aisle) - aisleOrder(b.aisle) || a.sortOrder - b.sortOrder;
-}
-
-/** Items matching the key, earliest-added first. */
-function findMatches(items: readonly ShoppingItem[], key: string): ShoppingItem[] {
-  if (!key) return [];
-  return items.filter((i) => matchKey(i.item) === key).sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 export function createListOps(deps: ListOpsDeps): ListOps {
   return {
     /**
      * Add an item. Already on the list unticked → 'already'; on the list but ticked →
-     * unticked; otherwise added. A stored quantity is never changed.
+     * unticked; otherwise added. Text with no item in it → 'empty', and nothing is written.
+     * A stored quantity is never changed.
      */
     async add(text) {
-      const key = spokenKey(text);
-      if (!key) throw new Error('Nothing to add');
+      const items = await deps.listItems();
+      if (!itemKey(text)) return { outcome: 'empty' };
 
-      const matches = findMatches(await deps.listItems(), key);
-      const onList = matches.find((i) => !i.checked);
-      if (onList) return { outcome: 'already', item: onList };
-
-      const ticked = matches[0];
-      if (ticked) {
-        const unticked = await deps.setChecked(ticked.itemId, false);
+      const match = findSameItem(items, text);
+      if (match && !match.checked) return { outcome: 'already', item: match };
+      if (match) {
+        const unticked = await deps.setChecked(match.itemId, false);
         if (unticked) return { outcome: 'unticked', item: unticked };
         // Deleted between the read and the update: fall through and add it afresh.
       }
@@ -95,11 +76,9 @@ export function createListOps(deps: ListOpsDeps): ListOps {
 
     /** Whether an item is on the list, ticked off or absent. Never changes anything. */
     async check(text) {
-      const matches = findMatches(await deps.listItems(), spokenKey(text));
-      const onList = matches.find((i) => !i.checked);
-      if (onList) return { status: 'on', item: onList };
-      if (matches[0]) return { status: 'ticked', item: matches[0] };
-      return { status: 'absent' };
+      const match = findSameItem(await deps.listItems(), text);
+      if (!match) return { status: 'absent' };
+      return match.checked ? { status: 'ticked', item: match } : { status: 'on', item: match };
     },
 
     /** The unticked items, in aisle order and then the order they were added. */
