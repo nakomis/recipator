@@ -11,12 +11,12 @@
 
 import { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2 } from 'aws-lambda';
 import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
-import { randomUUID } from 'crypto';
 import { isAisleId } from '../shared/aisles';
 import { CategorisationSource, cacheKey, categorise } from '../shared/categorise';
 import { makeBedrockCategoriser } from '../shared/bedrock-categorise';
 import { log } from '../shared/logger';
 import { cacheGet, cachePut } from './category-cache';
+import { newShoppingItem } from './new-item';
 import {
   DEFAULT_LIST_ID,
   ShoppingItem,
@@ -96,23 +96,9 @@ export async function handler(
         const deviceSource = DEVICE_SOURCES.has(body.source as string) ? (body.source as CategorisationSource) : null;
         const allowLlm = body.noLlm !== true;
         const cat = await categorise(text, { llmCategorise, cacheGet, cachePut }, deviceAisle, allowLlm, deviceSource);
-        const now = new Date().toISOString();
         // Honour a valid client-supplied id (idempotent sync push); otherwise mint one.
-        const itemId = typeof body.itemId === 'string' && UUID_RE.test(body.itemId) ? body.itemId : randomUUID();
-        const item: ShoppingItem = {
-          itemId,
-          listId,
-          raw: text,
-          item: cat.item,
-          amount: cat.amount,
-          unit: cat.unit,
-          aisle: cat.aisle,
-          checked: false,
-          sortOrder: Date.now(),
-          createdAt: now,
-          updatedAt: now,
-          source: cat.source,
-        };
+        const clientId = typeof body.itemId === 'string' && UUID_RE.test(body.itemId) ? body.itemId : undefined;
+        const item = newShoppingItem(listId, text, cat, clientId);
         await putItem(userId, item);
         log.info('shopping:add', { userId, listId, aisle: cat.aisle, source: cat.source });
         return ok({ item }, 201);
