@@ -1,0 +1,48 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "${INVOCATION_NAME}",
+      "intents": [
+        {
+          "name": "AddItemIntent",
+          "slots": [{ "name": "item", "type": "AMAZON.SearchQuery" }],
+          "samples": [
+            "add {item} to my list",
+            "add {item} to my shopping list",
+            "add {item} to the list",
+            "put {item} on my list",
+            "put {item} on the shopping list"
+          ]
+        },
+        {
+          "name": "CheckOffItemIntent",
+          "slots": [{ "name": "item", "type": "AMAZON.SearchQuery" }],
+          "samples": [
+            "tick off {item}",
+            "tick {item} off",
+            "tick off {item} from my list",
+            "cross off {item}",
+            "check off {item}"
+          ]
+        },
+        {
+          "name": "ReadListIntent",
+          "slots": [],
+          "samples": [
+            "what's on my list",
+            "what's on my shopping list",
+            "what is on my list",
+            "read my list",
+            "read me my shopping list"
+          ]
+        },
+        { "name": "AMAZON.HelpIntent", "samples": [] },
+        { "name": "AMAZON.StopIntent", "samples": [] },
+        { "name": "AMAZON.CancelIntent", "samples": [] },
+        { "name": "AMAZON.FallbackIntent", "samples": [] },
+        { "name": "AMAZON.NavigateHomeIntent", "samples": [] }
+      ],
+      "types": []
+    }
+  }
+}
