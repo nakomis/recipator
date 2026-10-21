@@ -1,0 +1,41 @@
+{
+  "manifest": {
+    "manifestVersion": "1.0",
+    "publishingInformation": {
+      "locales": {
+        "en-GB": {
+          "name": "${SKILL_NAME}",
+          "summary": "Your Recipator shopping list, by voice.",
+          "description": "Add items to your Recipator shopping list, tick them off and hear what is still on it. A private skill for the family.",
+          "examplePhrases": [
+            "Alexa, ask ${INVOCATION_NAME} to add milk to my list",
+            "Alexa, ask ${INVOCATION_NAME} to tick off eggs",
+            "Alexa, ask ${INVOCATION_NAME} what's on my list"
+          ],
+          "keywords": ["shopping", "list", "recipes"],
+          "smallIconUri": "file://assets/images/en-GB_smallIconUri.png",
+          "largeIconUri": "file://assets/images/en-GB_largeIconUri.png"
+        }
+      },
+      "isAvailableWorldwide": false,
+      "distributionCountries": ["GB"],
+      "distributionMode": "PRIVATE",
+      "category": "SHOPPING",
+      "testingInstructions": "Link a Recipator account, then add, tick off and read back shopping-list items."
+    },
+    "privacyAndCompliance": {
+      "allowsPurchases": false,
+      "usesPersonalInfo": false,
+      "isChildDirected": false,
+      "isExportCompliant": true,
+      "containsAds": false
+    },
+    "apis": {
+      "custom": {
+        "endpoint": {
+          "uri": "${ENDPOINT_ARN}"
+        }
+      }
+    }
+  }
+}
